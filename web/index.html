@@ -3,12 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Clanker Trades Dashboard</title>
+  <title>Clanker Man Treasury Dashboard</title>
   <style>
     :root {
       font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-      background: radial-gradient(circle at 20% 20%, #111833, #0b1021 45%), #0b1021;
-      color: #e8ecf2;
+      background: radial-gradient(circle at 20% 20%, #131416, #0c0d10 45%), #0c0d10;
+      color: #e6e8ec;
+      --card-bg: #14161b;
+      --card-border: #1f232d;
+      --panel-bg: rgba(20, 22, 27, 0.92);
+      --panel-border: #1f232d;
+      --accent: #f5a524;
+      --muted: #8e96a3;
+      --pill-bg: #1c1f27;
+      --pill-border: #2a303d;
     }
     * { box-sizing: border-box; }
     body {
@@ -19,17 +27,18 @@
     h1 {
       margin: 0;
       font-size: 26px;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.4px;
+      color: #f8f9fb;
     }
     h2 {
       margin: 0;
       font-size: 16px;
-      color: #9fb3d4;
+      color: var(--muted);
       font-weight: 600;
     }
     .panel {
-      background: rgba(17, 23, 46, 0.9);
-      border: 1px solid #1f2744;
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
       border-radius: 14px;
       padding: 16px 18px;
       box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
@@ -47,14 +56,14 @@
       gap: 6px;
       padding: 6px 10px;
       border-radius: 999px;
-      background: #1f2744;
-      color: #c9d3e6;
+      background: var(--pill-bg);
+      color: #d7dbe4;
       font-size: 12px;
-      border: 1px solid #222c4f;
+      border: 1px solid var(--pill-border);
     }
-    .pill.warn { color: #f7c266; background: #3b2a12; border-color: #6b3e0a; }
+    .pill.warn { color: #f2c166; background: #362710; border-color: #5a3a14; }
     .pill.ok { color: #7fe3a5; background: #123222; border-color: #1d4d2f; }
-    .pill.pending { color: #f7c266; background: #3b2a12; border-color: #6b3e0a; }
+    .pill.pending { color: #f2c166; background: #362710; border-color: #5a3a14; }
     .pill.confirmed { color: #7fe3a5; background: #123222; border-color: #1d4d2f; }
     .tag {
       display: inline-flex;
@@ -79,8 +88,8 @@
       margin-top: 12px;
     }
     .card {
-      background: #111730;
-      border: 1px solid #1f2744;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
       border-radius: 12px;
       padding: 12px;
       display: flex;
@@ -88,9 +97,9 @@
       gap: 6px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
     }
-    .card .label { color: #8da2c6; font-size: 12px; letter-spacing: 0.3px; }
-    .card .value { font-size: 18px; font-weight: 600; color: #f2f6ff; }
-    .card .sub { font-size: 12px; color: #7c8bab; }
+    .card .label { color: #a4acb9; font-size: 12px; letter-spacing: 0.3px; }
+    .card .value { font-size: 18px; font-weight: 700; color: #f8f9fb; }
+    .card .sub { font-size: 12px; color: var(--muted); }
     .controls {
       display: flex;
       gap: 10px;
@@ -99,25 +108,25 @@
     }
     .segmented {
       display: inline-flex;
-      background: #121a35;
-      border: 1px solid #1f2744;
+      background: #161920;
+      border: 1px solid var(--card-border);
       border-radius: 12px;
       overflow: hidden;
     }
     .segmented button {
       background: transparent;
       border: none;
-      color: #9fb3d4;
+      color: var(--muted);
       padding: 8px 12px;
       font-size: 13px;
       cursor: pointer;
       transition: background 0.15s ease, color 0.15s ease;
     }
-    .segmented button.active { background: #1f2a4d; color: #e8ecf2; }
+    .segmented button.active { background: #1f2430; color: #f8f9fb; border-bottom: 2px solid var(--accent); }
     .input {
-      background: #121a35;
-      border: 1px solid #1f2744;
-      color: #e8ecf2;
+      background: #161920;
+      border: 1px solid var(--card-border);
+      color: #f0f2f6;
       padding: 8px 10px;
       border-radius: 10px;
       min-width: 180px;
@@ -126,11 +135,11 @@
     .input::placeholder { color: #5f6f95; }
     .table-shell {
       margin-top: 12px;
-      border: 1px solid #1f2744;
+      border: 1px solid var(--card-border);
       border-radius: 12px;
       overflow: hidden;
       box-shadow: 0 10px 30px rgba(0,0,0,0.24);
-      background: #0e142b;
+      background: #11141b;
     }
     table {
       width: 100%;
@@ -139,23 +148,23 @@
     thead th {
       position: sticky;
       top: 0;
-      background: #0f1935;
+      background: #161920;
       z-index: 2;
-      border-bottom: 1px solid #1f2744;
+      border-bottom: 1px solid var(--card-border);
     }
     th, td {
       padding: 10px 8px;
       text-align: left;
       font-size: 13px;
-      border-bottom: 1px solid #10182f;
+      border-bottom: 1px solid #141821;
       white-space: nowrap;
     }
-    tbody tr:nth-child(odd) { background: rgba(20, 27, 52, 0.5); }
-    tbody tr:hover { background: #171f3e; }
+    tbody tr:nth-child(odd) { background: rgba(28, 30, 36, 0.65); }
+    tbody tr:hover { background: #1a1e26; }
     .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
-    .fade { color: #7c8bab; }
+    .fade { color: var(--muted); }
     .wrap { white-space: normal; }
-    a { color: #7ab7ff; text-decoration: none; }
+    a { color: #f5a524; text-decoration: none; }
     a:hover { text-decoration: underline; }
     .table-row.buy { border-left: 3px solid #2ec38a; }
     .table-row.sell { border-left: 3px solid #e45da2; }
@@ -189,15 +198,15 @@
     .bar-sell { background: linear-gradient(180deg, #e45da2, #7a2755); width: 100%; border-radius: 6px 6px 0 0; }
     .bar-label { text-align: center; font-size: 11px; color: #7c8bab; }
     .copy-btn {
-      background: #1f2744;
-      color: #9fb3d4;
-      border: 1px solid #27335a;
+      background: #1b1f28;
+      color: #d7dbe4;
+      border: 1px solid #2a303d;
       border-radius: 8px;
       padding: 4px 8px;
       cursor: pointer;
       font-size: 12px;
     }
-    .copy-btn:hover { background: #27335a; color: #e8ecf2; }
+    .copy-btn:hover { background: #232833; color: #f8f9fb; }
     @media (max-width: 900px) {
       body { padding: 16px; }
       .card-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
@@ -209,7 +218,7 @@
   <div class="panel">
     <div class="row" style="justify-content:space-between; align-items:flex-start;">
       <div>
-        <h1>Treasury Dashboard</h1>
+        <h1>Clanker Man Treasury Dashboard</h1>
         <div class="fade" style="font-size:13px;">Live CLANKER trades with treasury and buyback overlays</div>
       </div>
       <div class="row" style="margin:0;">
