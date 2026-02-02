@@ -17,6 +17,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const CHAIN = process.env.CHAIN || "base";
 const CONFIRMATIONS = Number(process.env.CONFIRMATIONS || 10);
 const CLANKER_TOKEN = (process.env.CLANKER_TOKEN || "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb").toLowerCase();
+const LOG_CHUNK = Number(process.env.LOG_CHUNK || 8); // limit provider ranges for free-tier RPC
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const POOL_ADDRESSES = (process.env.POOL_ADDRESSES || "")
@@ -247,20 +248,31 @@ function deriveSideAndAmounts(meta, swap) {
 
 async function backfill(fromBlock, toBlock) {
   log.info(`Backfill start ${fromBlock} -> ${toBlock}`);
-  const logs = await provider.getLogs({
-    ...getFilter(),
-    fromBlock,
-    toBlock
-  });
-
-  for (const logItem of logs) {
+  let total = 0;
+  let cursor = fromBlock;
+  while (cursor <= toBlock) {
+    const end = Math.min(cursor + LOG_CHUNK - 1, toBlock);
     try {
-      await handleLog(logItem, true);
+      const logs = await provider.getLogs({
+        ...getFilter(),
+        fromBlock: cursor,
+        toBlock: end
+      });
+      total += logs.length;
+      for (const logItem of logs) {
+        try {
+          await handleLog(logItem, true);
+        } catch (e) {
+          log.error("backfill log error", e?.message || e);
+        }
+      }
     } catch (e) {
-      log.error("backfill log error", e?.message || e);
+      log.error("backfill chunk error", `range ${cursor}-${end}`, e?.message || e);
     }
+    cursor = end + 1;
+    await sleep(150); // small pause to avoid provider rate limits
   }
-  log.info(`Backfill done (${logs.length} logs)`);
+  log.info(`Backfill done (${total} logs)`);
 }
 
 async function handleLog(log, isBackfill = false) {
