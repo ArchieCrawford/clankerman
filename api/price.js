@@ -14,28 +14,49 @@ const ALCHEMY_PRICE_KEY = process.env.ALCHEMY_BASE_API_KEY || process.env.ALCHEM
 
 async function getAlchemyPrice(tokenAddress, { days = 7, samples = 24 } = {}) {
   if (!ALCHEMY_PRICE_KEY) throw new Error("ALCHEMY_BASE_API_KEY missing");
+
+  const priceUrl = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/by-address`;
+  const historyUrl = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/historical`;
+
+  // Current price via POST (Alchemy requires addresses array)
+  const priceRes = await fetch(priceUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      addresses: [{ network: "base-mainnet", address: tokenAddress }]
+    })
+  });
+  const priceText = await priceRes.text();
+  if (!priceRes.ok) throw new Error(`Alchemy price http ${priceRes.status}: ${priceText || "no body"}`);
+  const priceJson = JSON.parse(priceText || "{}");
+  const priceEntry = priceJson?.data?.[0] || priceJson?.[0];
+  const priceVal = priceEntry?.prices?.[0]?.value ?? priceEntry?.price?.value ?? priceEntry?.price ?? null;
+  const priceNum = Number(priceVal);
+  if (!Number.isFinite(priceNum)) throw new Error("Alchemy price missing");
+
+  // History via POST (7d window, sampled)
   const end = new Date();
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
-  const base = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/by-address`;
-  const url =
-    `${base}` +
-    `?addresses[]=${encodeURIComponent(tokenAddress)}` +
-    `&network=base-mainnet` +
-    `&startDate=${encodeURIComponent(start.toISOString())}` +
-    `&endDate=${encodeURIComponent(end.toISOString())}` +
-    `&sampleCount=${samples}`;
-  const res = await fetch(url, { cache: "no-store" });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`Alchemy price http ${res.status}: ${text || "no body"}`);
-  const json = JSON.parse(text || "{}",
-  );
-  const entry = json?.data?.[0] || json?.[0];
-  const val = entry?.price?.value ?? entry?.price ?? null;
-  const n = Number(val);
-  if (!Number.isFinite(n)) throw new Error("Alchemy price missing");
-  // history array: try to use prices field if present
-  const history = entry?.prices || entry?.history || entry?.priceHistory || null;
-  return { price: n, history: Array.isArray(history) ? history : null };
+  const historyRes = await fetch(historyUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      address: tokenAddress,
+      network: "base-mainnet",
+      startDate: start.toISOString(),
+      endDate: end.toISOString(),
+      sampleCount: samples
+    })
+  });
+  const historyText = await historyRes.text();
+  if (!historyRes.ok) throw new Error(`Alchemy history http ${historyRes.status}: ${historyText || "no body"}`);
+  const historyJson = JSON.parse(historyText || "{}");
+  const historyEntry = historyJson?.data?.[0];
+  const historyArr = historyEntry?.prices || historyEntry?.priceHistory || historyEntry?.history || null;
+
+  return { price: priceNum, history: Array.isArray(historyArr) ? historyArr : null };
 }
 
 function computePrice(sqrtPriceX96) {
