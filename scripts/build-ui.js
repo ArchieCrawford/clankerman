@@ -1,32 +1,40 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import "dotenv/config";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const ROOT = path.join(__dirname, "..");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT = path.resolve(__dirname, "..");
 const SRC = path.join(ROOT, "web", "index.html");
 const DIST_DIR = path.join(ROOT, "dist");
 const DIST = path.join(DIST_DIR, "index.html");
 
-const SUPABASE_URL = process.env.SUPABASE_URL || "";
-const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
-const BUYBACK_ADDRESS = process.env.BUYBACK_ADDRESS || "";
-const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || "";
-const BNKR_ADDRESS = process.env.BNKR_ADDRESS || "";
-const FEE_ACCUM_ADDRESS = process.env.FEE_ACCUM_ADDRESS || "";
+const env = {
+  SUPABASE_URL: process.env.SUPABASE_URL,
+  SUPABASE_KEY: process.env.SUPABASE_ANON_KEY, // Never inject Service Role into HTML
+  BUYBACK_ADDRESS: process.env.BUYBACK_ADDRESS || "0x1195B555885C313614AF705D97db22881D2fbABD",
+  TREASURY_ADDRESS: process.env.TREASURY_ADDRESS || "0x8D4aB2A3E89EadfDC729204adF863A0Bfc7746F6",
+  BNKR_ADDRESS: process.env.BNKR_ADDRESS || "0x22af33fe49fd1fa80c7149773dde5890d3c76f3b",
+  FEE_ACCUM_ADDRESS: process.env.FEE_ACCUM_ADDRESS || "0xaF6E8f06c2c72c38D076Edc1ab2B5C2eA2bc365C",
+  BUILD_TIME: new Date().toLocaleString()
+};
 
-if (!SUPABASE_URL) throw new Error("SUPABASE_URL is required");
-if (!SUPABASE_KEY) throw new Error("SUPABASE_ANON_KEY is required");
+// Validation
+if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+  console.error("❌ Error: SUPABASE_URL and SUPABASE_ANON_KEY must be in .env");
+  process.exit(1);
+}
+
+console.log(`🏗️  Building dashboard for Treasury: ${env.TREASURY_ADDRESS}`);
 
 fs.mkdirSync(DIST_DIR, { recursive: true });
-const tpl = fs.readFileSync(SRC, "utf8");
-const out = tpl
-  .replace(/__SUPABASE_URL__/g, SUPABASE_URL)
-  .replace(/__SUPABASE_KEY__/g, SUPABASE_KEY)
-  .replace(/__BUYBACK_ADDRESS__/g, BUYBACK_ADDRESS)
-  .replace(/__TREASURY_ADDRESS__/g, TREASURY_ADDRESS)
-  .replace(/__BNKR_ADDRESS__/g, BNKR_ADDRESS)
-  .replace(/__FEE_ACCUM_ADDRESS__/g, FEE_ACCUM_ADDRESS);
-fs.writeFileSync(DIST, out, "utf8");
-console.log("Built dist/index.html");
+let html = fs.readFileSync(SRC, "utf8");
+
+// Loop through env object and replace __KEY__ with value
+Object.keys(env).forEach(key => {
+  const placeholder = new RegExp(`__${key}__`, 'g');
+  html = html.replace(placeholder, env[key]);
+});
+
+fs.writeFileSync(DIST, html, "utf8");
+console.log("✅ Build complete: dist/index.html");
