@@ -251,7 +251,12 @@
       <div class="card">
         <div class="label">CLANKER Price</div>
         <div class="value" id="clankerPrice">—</div>
-        <div class="sub">On-chain pool</div>
+        <div class="sub" id="clanker-price-sub">On-chain price</div>
+      </div>
+      <div class="card">
+        <div class="label">BNKR Price</div>
+        <div class="value" id="bnkrPrice">—</div>
+        <div class="sub" id="bnkr-price-sub">Price</div>
       </div>
       <div class="card">
         <div class="label">Last Activity</div>
@@ -359,6 +364,9 @@
     const wethBalanceEl = document.getElementById("weth-balance");
     const usdcBalanceEl = document.getElementById("usdc-balance");
     const clankerPriceEl = document.getElementById("clankerPrice");
+    const clankerPriceSubEl = document.getElementById("clanker-price-sub");
+    const bnkrPriceEl = document.getElementById("bnkrPrice");
+    const bnkrPriceSubEl = document.getElementById("bnkr-price-sub");
     const lastActivityEl = document.getElementById("last-activity");
     const buys24El = document.getElementById("buys-24h");
     const sells24El = document.getElementById("sells-24h");
@@ -535,12 +543,62 @@
       try {
         const res = await fetch("/api/price");
         if (!res.ok) throw new Error("price api error");
-        const { price } = await res.json();
+        const { price, history, source } = await res.json();
         const n = Number(price);
         if (!Number.isFinite(n)) throw new Error("invalid price");
         clankerPriceEl.textContent = `$${n.toFixed(4)}`;
+        if (Array.isArray(history) && history.length > 1) {
+          // Try to read last/first value; history shape may be array of numbers or objects with price/value
+          const first = history[0]?.value ?? history[0]?.price ?? history[0];
+          const last = history[history.length - 1]?.value ?? history[history.length - 1]?.price ?? history[history.length - 1];
+          const fNum = Number(first);
+          const lNum = Number(last);
+          if (Number.isFinite(fNum) && Number.isFinite(lNum) && fNum !== 0) {
+            const pct = ((lNum - fNum) / Math.abs(fNum)) * 100;
+            clankerPriceSubEl.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% · Alchemy prices`;
+          } else {
+            clankerPriceSubEl.textContent = source === "alchemy" ? "Alchemy prices" : "Price";
+          }
+        } else {
+          clankerPriceSubEl.textContent = source === "alchemy" ? "Alchemy prices" : "Pool price";
+        }
       } catch (e) {
         clankerPriceEl.textContent = "—";
+        if (clankerPriceSubEl) clankerPriceSubEl.textContent = "Price unavailable";
+      }
+    }
+
+    async function loadBnkrPrice() {
+      if (!bnkrPriceEl) return;
+      if (!BNKR_ADDR) {
+        bnkrPriceEl.textContent = "—";
+        bnkrPriceSubEl.textContent = "BNKR address missing";
+        return;
+      }
+      try {
+        const res = await fetch(`/api/price?token=bnkr`);
+        if (!res.ok) throw new Error("bnkr price api error");
+        const { price, history, source } = await res.json();
+        const n = Number(price);
+        if (!Number.isFinite(n)) throw new Error("invalid price");
+        bnkrPriceEl.textContent = `$${n.toFixed(4)}`;
+        if (Array.isArray(history) && history.length > 1) {
+          const first = history[0]?.value ?? history[0]?.price ?? history[0];
+          const last = history[history.length - 1]?.value ?? history[history.length - 1]?.price ?? history[history.length - 1];
+          const fNum = Number(first);
+          const lNum = Number(last);
+          if (Number.isFinite(fNum) && Number.isFinite(lNum) && fNum !== 0) {
+            const pct = ((lNum - fNum) / Math.abs(fNum)) * 100;
+            bnkrPriceSubEl.textContent = `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% · ${source === "alchemy" ? "Alchemy" : "Price"}`;
+          } else {
+            bnkrPriceSubEl.textContent = source === "alchemy" ? "Alchemy prices" : "Price";
+          }
+        } else {
+          bnkrPriceSubEl.textContent = source === "alchemy" ? "Alchemy prices" : "Price";
+        }
+      } catch (e) {
+        bnkrPriceEl.textContent = "—";
+        bnkrPriceSubEl.textContent = "Price unavailable";
       }
     }
 
@@ -695,12 +753,14 @@
     loadTrades();
     loadTreasuryBalances();
     loadClankerPrice();
+    loadBnkrPrice();
     loadTreasurySummary();
     loadTreasuryLastTrade();
     loadBnkrSummary();
     setInterval(loadTrades, 5000);
     setInterval(loadTreasuryBalances, 15000);
     setInterval(loadClankerPrice, 15000);
+    setInterval(loadBnkrPrice, 15000);
     setInterval(loadTreasurySummary, 15000);
     setInterval(loadTreasuryLastTrade, 30000);
     setInterval(loadBnkrSummary, 20000);
