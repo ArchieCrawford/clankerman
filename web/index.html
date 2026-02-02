@@ -240,6 +240,11 @@
         <div class="sub" id="usdc-balance">—</div>
       </div>
       <div class="card">
+        <div class="label">CLANKER Price</div>
+        <div class="value" id="clankerPrice">—</div>
+        <div class="sub">On-chain pool</div>
+      </div>
+      <div class="card">
         <div class="label">Last Activity</div>
         <div class="value" id="last-activity">—</div>
         <div class="sub">Treasury trades</div>
@@ -342,6 +347,7 @@
     const clankerBalanceEl = document.getElementById("clanker-balance");
     const wethBalanceEl = document.getElementById("weth-balance");
     const usdcBalanceEl = document.getElementById("usdc-balance");
+    const clankerPriceEl = document.getElementById("clankerPrice");
     const lastActivityEl = document.getElementById("last-activity");
     const buys24El = document.getElementById("buys-24h");
     const sells24El = document.getElementById("sells-24h");
@@ -507,6 +513,20 @@
       }
     }
 
+    async function loadClankerPrice() {
+      if (!clankerPriceEl) return;
+      try {
+        const res = await fetch("/api/price");
+        if (!res.ok) throw new Error("price api error");
+        const { price } = await res.json();
+        const n = Number(price);
+        if (!Number.isFinite(n)) throw new Error("invalid price");
+        clankerPriceEl.textContent = `$${n.toFixed(4)}`;
+      } catch (e) {
+        clankerPriceEl.textContent = "—";
+      }
+    }
+
     async function loadTreasurySummary() {
       if (!TREASURY_ADDR) return;
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -657,11 +677,13 @@
 
     loadTrades();
     loadTreasuryBalances();
+    loadClankerPrice();
     loadTreasurySummary();
     loadTreasuryLastTrade();
     loadBnkrSummary();
     setInterval(loadTrades, 5000);
     setInterval(loadTreasuryBalances, 15000);
+    setInterval(loadClankerPrice, 15000);
     setInterval(loadTreasurySummary, 15000);
     setInterval(loadTreasuryLastTrade, 30000);
     setInterval(loadBnkrSummary, 20000);

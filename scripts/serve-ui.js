@@ -1,13 +1,16 @@
 import "dotenv/config";
+import express from "express";
 import fs from "fs";
-import http from "http";
 import path from "path";
 import { fileURLToPath } from "url";
+import balancesHandler from "../api/balances.js";
+import priceHandler from "../api/price.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.join(__dirname, "..");
-const WEB_INDEX = path.join(ROOT, "web", "index.html");
+const WEB_ROOT = path.join(ROOT, "web");
+const WEB_INDEX = path.join(WEB_ROOT, "index.html");
 
 const log = (...args) => console.log(new Date().toISOString(), "[ui]", ...args);
 
@@ -37,17 +40,19 @@ const html = template
   .replace(/__TREASURY_ADDRESS__/g, TREASURY_ADDRESS)
   .replace(/__BNKR_ADDRESS__/g, BNKR_ADDRESS);
 
-const server = http.createServer((req, res) => {
-  if (req.url === "/" || req.url === "/index.html") {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end(html);
-    return;
-  }
-  res.writeHead(404);
-  res.end();
+const app = express();
+
+app.get("/api/balances", balancesHandler);
+app.get("/api/price", priceHandler);
+
+app.use(express.static(WEB_ROOT));
+
+app.get("*", (_, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
 });
 
 const PORT = process.env.UI_PORT ? Number(process.env.UI_PORT) : 4173;
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   log(`UI running at http://localhost:${PORT}`);
 });
