@@ -335,9 +335,11 @@
     const BUYBACK_ADDR = "__BUYBACK_ADDRESS__".toLowerCase();
     const TREASURY_ADDR = "__TREASURY_ADDRESS__".toLowerCase();
     const BNKR_ADDR = "__BNKR_ADDRESS__".toLowerCase();
+    const FEE_ACCUM_ADDR = "__FEE_ACCUM_ADDRESS__".toLowerCase();
     const WALLET_ROLES = {};
     if (TREASURY_ADDR) WALLET_ROLES[TREASURY_ADDR] = { role: "TREASURY", label: "Treasury" };
     if (BNKR_ADDR) WALLET_ROLES[BNKR_ADDR] = { role: "FEE_SOURCE", label: "BNKR Fee Source" };
+    if (FEE_ACCUM_ADDR) WALLET_ROLES[FEE_ACCUM_ADDR] = { role: "FEE_ACCUM", label: "Fee Accumulator" };
     const PAGE_SIZE = 200;
     const rowsEl = document.getElementById("rows");
     const statusEl = document.getElementById("status-pill");

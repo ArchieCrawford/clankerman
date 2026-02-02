@@ -14,6 +14,7 @@ const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVI
 const BUYBACK_ADDRESS = process.env.BUYBACK_ADDRESS || "";
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || "";
 const BNKR_ADDRESS = process.env.BNKR_ADDRESS || "";
+const FEE_ACCUM_ADDRESS = process.env.FEE_ACCUM_ADDRESS || "";
 
 if (!SUPABASE_URL) throw new Error("SUPABASE_URL is required");
 if (!SUPABASE_KEY) throw new Error("SUPABASE_ANON_KEY is required");
@@ -25,6 +26,7 @@ const out = tpl
   .replace(/__SUPABASE_KEY__/g, SUPABASE_KEY)
   .replace(/__BUYBACK_ADDRESS__/g, BUYBACK_ADDRESS)
   .replace(/__TREASURY_ADDRESS__/g, TREASURY_ADDRESS)
-  .replace(/__BNKR_ADDRESS__/g, BNKR_ADDRESS);
+  .replace(/__BNKR_ADDRESS__/g, BNKR_ADDRESS)
+  .replace(/__FEE_ACCUM_ADDRESS__/g, FEE_ACCUM_ADDRESS);
 fs.writeFileSync(DIST, out, "utf8");
 console.log("Built dist/index.html");

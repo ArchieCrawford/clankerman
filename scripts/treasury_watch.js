@@ -8,7 +8,15 @@ const RPC_URL = process.env.WSS_RPC_URL || process.env.RPC_URL;
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const TREASURY_ADDR = (process.env.TREASURY_ADDRESS || "").trim();
-const TOKEN_LIST = (process.env.TREASURY_TOKENS || "").split(",").map((s) => s.trim()).filter(Boolean);
+// Default to CLANKER and BNKR so balances are formatted with known decimals when no list provided.
+const DEFAULT_TOKENS = [
+  process.env.CLANKER_TOKEN || "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb",
+  process.env.BNKR_ADDRESS || "0x22af33fe49fd1fa80c7149773dde5890d3c76f3b"
+].filter(Boolean);
+const TOKEN_LIST = (process.env.TREASURY_TOKENS || DEFAULT_TOKENS.join(","))
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 if (!RPC_URL) throw new Error("Missing WSS_RPC_URL or RPC_URL in .env");
 if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error("Missing Supabase URL/key in .env");

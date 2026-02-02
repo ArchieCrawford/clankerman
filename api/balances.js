@@ -1,7 +1,8 @@
 const CLANKER_DEFAULT = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
 const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
 const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
-const BASESCAN_BASE = process.env.BASESCAN_API_BASE || "https://api.basescan.org/api";
+const BASESCAN_BASE = process.env.BASESCAN_API_BASE || "https://api.etherscan.io/v2/api";
+const CHAIN_ID = process.env.BASE_CHAIN_ID || "8453";
 const ALCHEMY_BASE_URL = process.env.ALCHEMY_BASE_URL || "";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -76,7 +77,7 @@ export default async function handler(req, res) {
 
     let nativeRaw;
     if (apiKey) {
-      const nativeUrl = `${BASESCAN_BASE}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+      const nativeUrl = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
       nativeRaw = await fetchBalance(nativeUrl);
     } else if (ALCHEMY_BASE_URL) {
       nativeRaw = await getNativeAlchemy(address);
@@ -91,7 +92,7 @@ export default async function handler(req, res) {
       try {
         let raw;
         if (apiKey) {
-          const url = `${BASESCAN_BASE}?module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
+          const url = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
           raw = await fetchBalance(url);
         } else {
           raw = await getTokenAlchemy(t.address, address);
