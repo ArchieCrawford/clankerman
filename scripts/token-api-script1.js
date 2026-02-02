@@ -37,16 +37,21 @@ async function getCurrentPrice(addr) {
   return { price: priceNum, raw: json };
 }
 
-async function getPriceHistory(addr, days = 7, samples = 24) {
+async function getPriceHistory(addr, days = 30, samples = 24) {
   const end = new Date();
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
-  const url =
-    `${priceBase}?addresses[]=${encodeURIComponent(addr)}` +
-    `&network=base-mainnet` +
-    `&startDate=${encodeURIComponent(start.toISOString())}` +
-    `&endDate=${encodeURIComponent(end.toISOString())}` +
-    `&sampleCount=${samples}`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(`https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/historical`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({
+      address: addr,
+      network: "base-mainnet",
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      sampleCount: samples
+    })
+  });
   const text = await res.text();
   if (!res.ok) throw new Error(`history ${res.status}: ${text || "no body"}`);
   const json = JSON.parse(text || "{}");

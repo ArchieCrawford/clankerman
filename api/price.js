@@ -12,7 +12,7 @@ const POOL_DEFAULT = "0xdf43c40188c1a711bc49fa5922198b8d73291800";
 const Q192 = BigInt(2) ** BigInt(192);
 const ALCHEMY_PRICE_KEY = process.env.ALCHEMY_BASE_API_KEY || process.env.ALCHEMY_PRICE_API_KEY || "";
 
-async function getAlchemyPrice(tokenAddress, { days = 7, samples = 24 } = {}) {
+async function getAlchemyPrice(tokenAddress, { days = 30, samples = 24 } = {}) {
   if (!ALCHEMY_PRICE_KEY) throw new Error("ALCHEMY_BASE_API_KEY missing");
 
   const priceUrl = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/by-address`;
@@ -45,8 +45,8 @@ async function getAlchemyPrice(tokenAddress, { days = 7, samples = 24 } = {}) {
     body: JSON.stringify({
       address: tokenAddress,
       network: "base-mainnet",
-      startDate: start.toISOString(),
-      endDate: end.toISOString(),
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
       sampleCount: samples
     })
   });
