@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clanker Trades Dashboard</title>
+  <style>
+    :root {
+      font-family: "Inter", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 20% 20%, #111833, #0b1021 45%), #0b1021;
+      color: #e8ecf2;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px;
+      max-width: 1280px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      letter-spacing: 0.2px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      color: #9fb3d4;
+      font-weight: 600;
+    }
+    .panel {
+      background: rgba(17, 23, 46, 0.9);
+      border: 1px solid #1f2744;
+      border-radius: 14px;
+      padding: 16px 18px;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28);
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #1f2744;
+      color: #c9d3e6;
+      font-size: 12px;
+      border: 1px solid #222c4f;
+    }
+    .pill.warn { color: #f7c266; background: #3b2a12; border-color: #6b3e0a; }
+    .pill.ok { color: #7fe3a5; background: #123222; border-color: #1d4d2f; }
+    .pill.pending { color: #f7c266; background: #3b2a12; border-color: #6b3e0a; }
+    .pill.confirmed { color: #7fe3a5; background: #123222; border-color: #1d4d2f; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .tag.buy { background: #102f2b; color: #6cf1c0; border: 1px solid #1c5b4d; }
+    .tag.sell { background: #321722; color: #f2a0c2; border: 1px solid #6b2843; }
+    .tag.source { background: #1d2745; color: #9fb3d4; border: 1px solid #24305a; }
+    .tag.role-treasury { background: #102f2b; color: #6cf1c0; border: 1px solid #1c5b4d; }
+    .tag.role-fee { background: #2d1a32; color: #f2a0c2; border: 1px solid #5b2a4b; }
+    .tag.role-market { background: #1a2342; color: #9fb3d4; border: 1px solid #24305a; }
+    .tag.buyback { background: #0f2f56; color: #7ab7ff; border: 1px solid #1f4a7a; }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    .card {
+      background: #111730;
+      border: 1px solid #1f2744;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+    }
+    .card .label { color: #8da2c6; font-size: 12px; letter-spacing: 0.3px; }
+    .card .value { font-size: 18px; font-weight: 600; color: #f2f6ff; }
+    .card .sub { font-size: 12px; color: #7c8bab; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 12px 0 6px 0;
+    }
+    .segmented {
+      display: inline-flex;
+      background: #121a35;
+      border: 1px solid #1f2744;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .segmented button {
+      background: transparent;
+      border: none;
+      color: #9fb3d4;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+    .segmented button.active { background: #1f2a4d; color: #e8ecf2; }
+    .input {
+      background: #121a35;
+      border: 1px solid #1f2744;
+      color: #e8ecf2;
+      padding: 8px 10px;
+      border-radius: 10px;
+      min-width: 180px;
+      font-size: 13px;
+    }
+    .input::placeholder { color: #5f6f95; }
+    .table-shell {
+      margin-top: 12px;
+      border: 1px solid #1f2744;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.24);
+      background: #0e142b;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #0f1935;
+      z-index: 2;
+      border-bottom: 1px solid #1f2744;
+    }
+    th, td {
+      padding: 10px 8px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid #10182f;
+      white-space: nowrap;
+    }
+    tbody tr:nth-child(odd) { background: rgba(20, 27, 52, 0.5); }
+    tbody tr:hover { background: #171f3e; }
+    .mono { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; }
+    .fade { color: #7c8bab; }
+    .wrap { white-space: normal; }
+    a { color: #7ab7ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .table-row.buy { border-left: 3px solid #2ec38a; }
+    .table-row.sell { border-left: 3px solid #e45da2; }
+    .chart {
+      margin-top: 8px;
+      background: #0f162d;
+      border: 1px solid #1f2744;
+      border-radius: 12px;
+      padding: 12px;
+    }
+    .chart-bars {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 6px;
+      align-items: end;
+      height: 140px;
+    }
+    .chart-bar {
+      display: grid;
+      gap: 4px;
+      grid-template-rows: 1fr auto;
+    }
+    .bar-stack {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 2px;
+      height: 100%;
+    }
+    .bar-buy { background: linear-gradient(180deg, #2ec38a, #145b46); width: 100%; border-radius: 6px 6px 0 0; }
+    .bar-sell { background: linear-gradient(180deg, #e45da2, #7a2755); width: 100%; border-radius: 6px 6px 0 0; }
+    .bar-label { text-align: center; font-size: 11px; color: #7c8bab; }
+    .copy-btn {
+      background: #1f2744;
+      color: #9fb3d4;
+      border: 1px solid #27335a;
+      border-radius: 8px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .copy-btn:hover { background: #27335a; color: #e8ecf2; }
+    @media (max-width: 900px) {
+      body { padding: 16px; }
+      .card-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+      th:nth-child(n+7), td:nth-child(n+7) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between; align-items:flex-start;">
+      <div>
+        <h1>Treasury Dashboard</h1>
+        <div class="fade" style="font-size:13px;">Live CLANKER trades with treasury and buyback overlays</div>
+      </div>
+      <div class="row" style="margin:0;">
+        <span class="pill" id="status-pill">Loading…</span>
+        <span class="pill" id="count-pill"></span>
+        <span class="pill">Chain: <span id="chain-pill">—</span></span>
+      </div>
+    </div>
+
+    <div class="card-grid" id="treasury-cards">
+      <div class="card" style="grid-column: span 2; min-width: 260px;">
+        <div class="label">Treasury Wallet</div>
+        <div class="value" id="treasury-address">—</div>
+        <div class="row" style="margin:0; gap:8px;">
+          <button class="copy-btn" id="copy-treasury">Copy</button>
+          <a class="pill" id="treasury-link" href="#" target="_blank" rel="noreferrer" style="text-decoration:none;">View on BaseScan</a>
+        </div>
+        <div class="sub">Buybacks: <a id="buyback-link" href="#" target="_blank" rel="noreferrer">—</a></div>
+      </div>
+      <div class="card">
+        <div class="label">Treasury CLANKER</div>
+        <div class="value" id="clanker-balance">—</div>
+        <div class="sub">Balance</div>
+      </div>
+      <div class="card">
+        <div class="label">Treasury WETH / USDC</div>
+        <div class="value" id="weth-balance">—</div>
+        <div class="sub" id="usdc-balance">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Last Activity</div>
+        <div class="value" id="last-activity">—</div>
+        <div class="sub">Treasury trades</div>
+      </div>
+      <div class="card">
+        <div class="label">Treasury Buys (24h)</div>
+        <div class="value" id="buys-24h">—</div>
+        <div class="sub">Count</div>
+      </div>
+      <div class="card">
+        <div class="label">Treasury Sells (24h)</div>
+        <div class="value" id="sells-24h">—</div>
+        <div class="sub">Count</div>
+      </div>
+      <div class="card">
+        <div class="label">Net CLANKER Flow (24h)</div>
+        <div class="value" id="net-flow">—</div>
+        <div class="sub">Buys - sells</div>
+      </div>
+      <div class="card">
+        <div class="label">BNKR Inflow (24h)</div>
+        <div class="value" id="bnkr-inflow">—</div>
+        <div class="sub">Confirmed</div>
+      </div>
+      <div class="card">
+        <div class="label">BNKR Pending</div>
+        <div class="value" id="bnkr-pending">—</div>
+        <div class="sub">Unconfirmed</div>
+      </div>
+    </div>
+
+    <div class="chart">
+      <div class="row" style="margin-bottom:6px;">
+        <h2>Treasury Activity (24h)</h2>
+        <span class="pill" id="treasury-trade-count">Trades: —</span>
+      </div>
+      <div class="chart-bars" id="activity-chart"></div>
+    </div>
+
+    <div class="controls">
+      <div class="segmented" id="filter-mode">
+        <button data-mode="all" class="active">All</button>
+        <button data-mode="treasury">Treasury</button>
+        <button data-mode="bnkr">BNKR</button>
+        <button data-mode="buyback">Buybacks</button>
+      </div>
+      <input class="input" id="pool-filter" placeholder="Filter by pool address" />
+      <input class="input" id="min-clanker" placeholder="Min CLANKER amount" type="number" min="0" step="1" />
+      <input class="input" id="search" placeholder="Search tx hash or maker" />
+      <span class="pill">Auto-refresh 5s</span>
+      <span class="pill" id="buyback-pill" style="display:none;"></span>
+    </div>
+
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Block</th>
+            <th>Time</th>
+            <th>Status</th>
+            <th>Side</th>
+            <th>Source</th>
+            <th>Maker</th>
+            <th>Pool</th>
+            <th>Tx</th>
+            <th>Amounts</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+    const supabaseUrl = "__SUPABASE_URL__";
+    const supabaseKey = "__SUPABASE_KEY__";
+    const BUYBACK_ADDR = "__BUYBACK_ADDRESS__".toLowerCase();
+    const TREASURY_ADDR = "__TREASURY_ADDRESS__".toLowerCase();
+    const BNKR_ADDR = "__BNKR_ADDRESS__".toLowerCase();
+    const WALLET_ROLES = {};
+    if (TREASURY_ADDR) WALLET_ROLES[TREASURY_ADDR] = { role: "TREASURY", label: "Treasury" };
+    if (BNKR_ADDR) WALLET_ROLES[BNKR_ADDR] = { role: "FEE_SOURCE", label: "BNKR Fee Source" };
+    const PAGE_SIZE = 200;
+    const rowsEl = document.getElementById("rows");
+    const statusEl = document.getElementById("status-pill");
+    const countEl = document.getElementById("count-pill");
+    const chainEl = document.getElementById("chain-pill");
+    const poolFilterEl = document.getElementById("pool-filter");
+    const minClankerEl = document.getElementById("min-clanker");
+    const searchEl = document.getElementById("search");
+    const buybackPill = document.getElementById("buyback-pill");
+    const buybackLink = document.getElementById("buyback-link");
+    const filterModeEl = document.getElementById("filter-mode");
+    const treasuryLink = document.getElementById("treasury-link");
+    const treasuryAddressEl = document.getElementById("treasury-address");
+    const copyTreasuryBtn = document.getElementById("copy-treasury");
+    const treasuryTradeCountEl = document.getElementById("treasury-trade-count");
+    const clankerBalanceEl = document.getElementById("clanker-balance");
+    const wethBalanceEl = document.getElementById("weth-balance");
+    const usdcBalanceEl = document.getElementById("usdc-balance");
+    const lastActivityEl = document.getElementById("last-activity");
+    const buys24El = document.getElementById("buys-24h");
+    const sells24El = document.getElementById("sells-24h");
+    const netFlowEl = document.getElementById("net-flow");
+    const activityChartEl = document.getElementById("activity-chart");
+    const bnkrInflowEl = document.getElementById("bnkr-inflow");
+    const bnkrPendingEl = document.getElementById("bnkr-pending");
+
+    const client = createClient(supabaseUrl, supabaseKey);
+    let lastChain = "";
+    let lastBuybackCount = 0;
+    let viewMode = "all";
+
+    function fmtTime(ts) {
+      const d = new Date(ts);
+      return d.toLocaleString();
+    }
+
+    function fmtAddr(a, len = 6) {
+      if (!a) return "";
+      return a.slice(0, len + 2) + "…" + a.slice(-4);
+    }
+
+    function fmtNumber(v, digits = 2) {
+      if (v === undefined || v === null || Number.isNaN(Number(v))) return "—";
+      const n = Number(v);
+      if (Math.abs(n) >= 1000000) return `${(n / 1e6).toFixed(digits)}m`;
+      if (Math.abs(n) >= 1000) return `${(n / 1e3).toFixed(digits)}k`;
+      return n.toFixed(digits);
+    }
+
+    function getWalletMeta(addr) {
+      const key = (addr || "").toLowerCase();
+      return WALLET_ROLES[key] || { role: "MARKET", label: "Market" };
+    }
+
+    function renderTable(data) {
+      lastBuybackCount = 0;
+      let treasuryCount = 0;
+      rowsEl.innerHTML = data
+        .map((r) => {
+          const meta = getWalletMeta(r.maker);
+          const statusClass = r.status === "confirmed" ? "pill confirmed" : "pill pending";
+          const amounts = [
+            r.clanker_amount ? `${r.clanker_amount} CLANKER` : null,
+            r.quote_amount && r.quote_symbol ? `${r.quote_amount} ${r.quote_symbol}` : null
+          ].filter(Boolean).join(" · ");
+          const sideTag = r.side ? r.side.toUpperCase() : "?";
+          const rowClass = r.side && r.side.toLowerCase() === "buy" ? "buy" : "sell";
+          const isBuyback = meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy";
+          if (meta.role === "TREASURY") treasuryCount += 1;
+          if (isBuyback) lastBuybackCount += 1;
+          const sourceClass = meta.role === "TREASURY" ? "role-treasury" : meta.role === "FEE_SOURCE" ? "role-fee" : "role-market";
+          const buybackTag = isBuyback ? `<span class="tag buyback">Buyback</span>` : "";
+          return `
+            <tr class="table-row ${rowClass}">
+              <td class="mono">${r.block_number}</td>
+              <td class="fade">${fmtTime(r.block_time)}</td>
+              <td><span class="${statusClass}">${r.status}</span></td>
+              <td><span class="tag ${rowClass}">${sideTag}</span> ${buybackTag}</td>
+              <td><span class="tag ${sourceClass}">${meta.label}</span></td>
+              <td class="mono">${fmtAddr(r.maker)}</td>
+              <td class="mono">${fmtAddr(r.pool_address)}</td>
+              <td class="mono"><a href="https://basescan.org/tx/${r.tx_hash}" target="_blank" rel="noreferrer">${fmtAddr(r.tx_hash)}</a></td>
+              <td class="wrap">${amounts || ""}</td>
+            </tr>`;
+        })
+        .join("");
+
+      if (TREASURY_ADDR) {
+        treasuryTradeCountEl.textContent = `Trades: ${treasuryCount}`;
+      }
+      buybackPill.textContent = `Buybacks: ${lastBuybackCount}`;
+      buybackPill.style.display = "inline-flex";
+    }
+
+    async function loadTrades() {
+      const poolFilter = poolFilterEl.value.trim().toLowerCase();
+      const minClanker = Number(minClankerEl.value || 0);
+      const searchTerm = searchEl.value.trim().toLowerCase();
+      statusEl.textContent = "Loading…";
+      try {
+        let query = client
+          .from("trades")
+          .select("tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain")
+          .order("block_number", { ascending: false })
+          .limit(PAGE_SIZE);
+
+        if (poolFilter) query = query.ilike("pool_address", `%${poolFilter}%`);
+        if (viewMode === "buyback" && TREASURY_ADDR) query = query.eq("maker", TREASURY_ADDR).eq("side", "buy");
+        if (viewMode === "treasury" && TREASURY_ADDR) query = query.eq("maker", TREASURY_ADDR);
+        if (viewMode === "bnkr") query = query.eq("maker", BNKR_ADDR);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const filtered = (data || []).filter((r) => {
+          const meetsMin = !minClanker || Number(r.clanker_amount || 0) >= minClanker;
+          const meetsSearch = !searchTerm ||
+            (r.tx_hash && r.tx_hash.toLowerCase().includes(searchTerm)) ||
+            (r.maker && r.maker.toLowerCase().includes(searchTerm));
+          return meetsMin && meetsSearch;
+        });
+
+        renderTable(filtered);
+        countEl.textContent = `${filtered.length} rows`;
+        if (data && data.length && data[0].chain) {
+          lastChain = data[0].chain;
+        }
+        chainEl.textContent = lastChain || "—";
+        statusEl.textContent = "OK";
+        statusEl.className = "pill ok";
+      } catch (e) {
+        statusEl.textContent = "Error";
+        statusEl.className = "pill warn";
+        console.error(e);
+      }
+    }
+
+    async function loadTreasuryBalances() {
+      if (!TREASURY_ADDR) return;
+      try {
+        const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
+        if (error) throw error;
+        if (!data || !data.length) {
+          clankerBalanceEl.textContent = "—";
+          wethBalanceEl.textContent = "—";
+          usdcBalanceEl.textContent = "—";
+          return;
+        }
+        const findToken = (symbol) => data.find((r) => (r.token_symbol || "").toUpperCase() === symbol.toUpperCase());
+        const cl = findToken("CLANKER");
+        const we = findToken("WETH");
+        const us = findToken("USDC");
+        clankerBalanceEl.textContent = cl ? cl.amount : "—";
+        wethBalanceEl.textContent = we ? we.amount : "—";
+        usdcBalanceEl.textContent = us ? `USDC ${us.amount}` : "—";
+      } catch (e) {
+        clankerBalanceEl.textContent = "error";
+        wethBalanceEl.textContent = "error";
+        usdcBalanceEl.textContent = "error";
+      }
+    }
+
+    async function loadTreasurySummary() {
+      if (!TREASURY_ADDR) return;
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      try {
+        const { data, error } = await client
+          .from("trades")
+          .select("side,block_time,clanker_amount")
+          .eq("maker", TREASURY_ADDR)
+          .gte("block_time", since)
+          .order("block_time", { ascending: false })
+          .limit(500);
+        if (error) throw error;
+
+        let buys = 0;
+        let sells = 0;
+        let net = 0;
+        let latest = null;
+        const buckets = new Array(24).fill(0).map(() => ({ buy: 0, sell: 0 }));
+        const now = Date.now();
+
+        (data || []).forEach((r) => {
+          const amt = Number(r.clanker_amount || 0);
+          const ts = new Date(r.block_time).getTime();
+          const hoursAgo = Math.floor((now - ts) / (60 * 60 * 1000));
+          const idx = 23 - Math.min(23, Math.max(0, hoursAgo));
+          if (!latest || ts > latest) latest = ts;
+          if ((r.side || "").toLowerCase() === "buy") {
+            buys += 1;
+            net += amt;
+            if (idx >= 0 && idx < buckets.length) buckets[idx].buy += 1;
+          } else if ((r.side || "").toLowerCase() === "sell") {
+            sells += 1;
+            net -= amt;
+            if (idx >= 0 && idx < buckets.length) buckets[idx].sell += 1;
+          }
+        });
+
+        buys24El.textContent = buys;
+        sells24El.textContent = sells;
+        netFlowEl.textContent = net ? `${net > 0 ? "+" : ""}${fmtNumber(net, 2)} CLANKER` : "0";
+        lastActivityEl.textContent = latest ? fmtTime(latest) : "—";
+        renderActivityChart(buckets);
+      } catch (e) {
+        buys24El.textContent = "—";
+        sells24El.textContent = "—";
+        netFlowEl.textContent = "—";
+      }
+    }
+
+    async function loadTreasuryLastTrade() {
+      if (!TREASURY_ADDR) return;
+      try {
+        const { data, error } = await client
+          .from("trades")
+          .select("block_time")
+          .eq("maker", TREASURY_ADDR)
+          .order("block_time", { ascending: false })
+          .limit(1);
+        if (error) throw error;
+        if (data && data[0]?.block_time) lastActivityEl.textContent = fmtTime(data[0].block_time);
+      } catch (e) {
+        // leave as-is
+      }
+    }
+
+    function renderActivityChart(buckets) {
+      const maxVal = Math.max(1, ...buckets.map((b) => b.buy + b.sell));
+      const slice = buckets.slice(12); // show last 12 hours
+      activityChartEl.innerHTML = slice
+        .map((b, idx) => {
+          const total = b.buy + b.sell || 0;
+          const buyHeight = total ? (b.buy / maxVal) * 100 : 0;
+          const sellHeight = total ? (b.sell / maxVal) * 100 : 0;
+          const label = `${idx - 11}h`; // -11h ... 0h
+          return `
+            <div class="chart-bar">
+              <div class="bar-stack">
+                <div class="bar-sell" style="height:${sellHeight}%"></div>
+                <div class="bar-buy" style="height:${buyHeight}%"></div>
+              </div>
+              <div class="bar-label">${label}</div>
+            </div>`;
+        })
+        .join("");
+    }
+
+    function bindFilters() {
+      poolFilterEl.addEventListener("input", loadTrades);
+      minClankerEl.addEventListener("input", loadTrades);
+      searchEl.addEventListener("input", loadTrades);
+      filterModeEl.querySelectorAll("button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          filterModeEl.querySelectorAll("button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          viewMode = btn.dataset.mode;
+          loadTrades();
+        });
+      });
+    }
+
+    function bindAddress() {
+      if (BUYBACK_ADDR) {
+        buybackLink.textContent = BUYBACK_ADDR.slice(0, 8) + "…" + BUYBACK_ADDR.slice(-4);
+        buybackLink.href = `https://basescan.org/address/${BUYBACK_ADDR}`;
+      }
+      if (TREASURY_ADDR) {
+        treasuryAddressEl.textContent = TREASURY_ADDR.slice(0, 8) + "…" + TREASURY_ADDR.slice(-4);
+        treasuryLink.href = `https://basescan.org/address/${TREASURY_ADDR}`;
+        copyTreasuryBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(TREASURY_ADDR);
+            copyTreasuryBtn.textContent = "Copied";
+            setTimeout(() => (copyTreasuryBtn.textContent = "Copy"), 1200);
+          } catch (e) {
+            copyTreasuryBtn.textContent = "Copy failed";
+            setTimeout(() => (copyTreasuryBtn.textContent = "Copy"), 1200);
+          }
+        });
+      }
+    }
+
+    async function loadBnkrSummary() {
+      if (!BNKR_ADDR) return;
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      try {
+        const { data, error } = await client
+          .from("trades")
+          .select("clanker_amount,status")
+          .eq("maker", BNKR_ADDR)
+          .gte("block_time", since)
+          .limit(500);
+        if (error) throw error;
+        let inflow = 0;
+        let pending = 0;
+        (data || []).forEach((r) => {
+          const amt = Number(r.clanker_amount || 0);
+          if ((r.status || "").toLowerCase() === "confirmed") inflow += amt;
+          else pending += amt;
+        });
+        bnkrInflowEl.textContent = inflow ? `${fmtNumber(inflow, 2)} CLANKER` : "0";
+        bnkrPendingEl.textContent = pending ? `${fmtNumber(pending, 2)} CLANKER` : "0";
+      } catch (e) {
+        bnkrInflowEl.textContent = "—";
+        bnkrPendingEl.textContent = "—";
+      }
+    }
+
+    loadTrades();
+    loadTreasuryBalances();
+    loadTreasurySummary();
+    loadTreasuryLastTrade();
+    loadBnkrSummary();
+    setInterval(loadTrades, 5000);
+    setInterval(loadTreasuryBalances, 15000);
+    setInterval(loadTreasurySummary, 15000);
+    setInterval(loadTreasuryLastTrade, 30000);
+    setInterval(loadBnkrSummary, 20000);
+    bindFilters();
+    bindAddress();
+  </script>
+</body>
+</html>
