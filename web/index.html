@@ -431,19 +431,26 @@
           .limit(PAGE_SIZE);
 
         if (poolFilter) query = query.ilike("pool_address", `%${poolFilter}%`);
-        if (viewMode === "buyback" && TREASURY_ADDR) query = query.eq("maker", TREASURY_ADDR).eq("side", "buy");
-        if (viewMode === "treasury" && TREASURY_ADDR) query = query.eq("maker", TREASURY_ADDR);
-        if (viewMode === "bnkr") query = query.eq("maker", BNKR_ADDR);
 
         const { data, error } = await query;
         if (error) throw error;
 
         const filtered = (data || []).filter((r) => {
+          const makerLower = (r.maker || "").toLowerCase();
+          const sideLower = (r.side || "").toLowerCase();
+          const modeMatch =
+            viewMode === "treasury"
+              ? TREASURY_ADDR && makerLower === TREASURY_ADDR
+              : viewMode === "bnkr"
+              ? BNKR_ADDR && makerLower === BNKR_ADDR
+              : viewMode === "buyback"
+              ? TREASURY_ADDR && makerLower === TREASURY_ADDR && sideLower === "buy"
+              : true;
           const meetsMin = !minClanker || Number(r.clanker_amount || 0) >= minClanker;
           const meetsSearch = !searchTerm ||
             (r.tx_hash && r.tx_hash.toLowerCase().includes(searchTerm)) ||
             (r.maker && r.maker.toLowerCase().includes(searchTerm));
-          return meetsMin && meetsSearch;
+          return modeMatch && meetsMin && meetsSearch;
         });
 
         renderTable(filtered);
@@ -492,8 +499,7 @@
       try {
         const { data, error } = await client
           .from("trades")
-          .select("side,block_time,clanker_amount")
-          .eq("maker", TREASURY_ADDR)
+          .select("side,block_time,clanker_amount,maker")
           .gte("block_time", since)
           .order("block_time", { ascending: false })
           .limit(500);
@@ -507,6 +513,8 @@
         const now = Date.now();
 
         (data || []).forEach((r) => {
+          const makerLower = (r.maker || "").toLowerCase();
+          if (makerLower !== TREASURY_ADDR) return;
           const amt = Number(r.clanker_amount || 0);
           const ts = new Date(r.block_time).getTime();
           const hoursAgo = Math.floor((now - ts) / (60 * 60 * 1000));
@@ -540,12 +548,12 @@
       try {
         const { data, error } = await client
           .from("trades")
-          .select("block_time")
-          .eq("maker", TREASURY_ADDR)
+          .select("block_time,maker")
           .order("block_time", { ascending: false })
-          .limit(1);
+          .limit(20);
         if (error) throw error;
-        if (data && data[0]?.block_time) lastActivityEl.textContent = fmtTime(data[0].block_time);
+        const hit = (data || []).find((r) => (r.maker || "").toLowerCase() === TREASURY_ADDR);
+        if (hit?.block_time) lastActivityEl.textContent = fmtTime(hit.block_time);
       } catch (e) {
         // leave as-is
       }
@@ -613,14 +621,14 @@
       try {
         const { data, error } = await client
           .from("trades")
-          .select("clanker_amount,status")
-          .eq("maker", BNKR_ADDR)
+          .select("clanker_amount,status,maker")
           .gte("block_time", since)
           .limit(500);
         if (error) throw error;
         let inflow = 0;
         let pending = 0;
         (data || []).forEach((r) => {
+          if ((r.maker || "").toLowerCase() !== BNKR_ADDR) return;
           const amt = Number(r.clanker_amount || 0);
           if ((r.status || "").toLowerCase() === "confirmed") inflow += amt;
           else pending += amt;
