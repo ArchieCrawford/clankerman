@@ -45,8 +45,21 @@ const app = express();
 app.get("/api/balances", balancesHandler);
 app.get("/api/price", priceHandler);
 
-app.use(express.static(WEB_ROOT));
+// Serve injected HTML for index routes
+app.get("/", (_, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+});
 
+app.get("/index.html", (_, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
+});
+
+// Static assets, but never auto-serve index
+app.use(express.static(WEB_ROOT, { index: false }));
+
+// SPA fallback
 app.get("*", (_, res) => {
   res.set("Content-Type", "text/html; charset=utf-8");
   res.send(html);
