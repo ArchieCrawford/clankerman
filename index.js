@@ -17,6 +17,7 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const CHAIN = process.env.CHAIN || "base";
 const CONFIRMATIONS = Number(process.env.CONFIRMATIONS || 10);
 const CLANKER_TOKEN = (process.env.CLANKER_TOKEN || "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb").toLowerCase();
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const POOL_ADDRESSES = (process.env.POOL_ADDRESSES || "")
   .split(",")
@@ -44,6 +45,7 @@ if (!SWAP_TOPIC.startsWith("0x")) throw new Error("Missing/invalid SWAP_TOPIC");
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 let provider;
+let connecting = false;
 const poolMeta = new Map(); // pool -> { token0, token1, token0Symbol, token1Symbol }
 const erc20Meta = new Map();
 
@@ -307,6 +309,10 @@ async function handleLog(log, isBackfill = false) {
 async function confirmLoop() {
   while (true) {
     try {
+      if (!provider) {
+        await sleep(2000);
+        continue;
+      }
       const latest = await provider.getBlockNumber();
       const cutoff = latest - CONFIRMATIONS;
       if (cutoff > 0) {
@@ -325,39 +331,56 @@ async function confirmLoop() {
     } catch (e) {
       log.error("confirm loop error", e?.message || e);
     }
-    await new Promise((r) => setTimeout(r, 5000));
+    await sleep(5000);
   }
 }
 
 async function connect() {
-  provider = new ethers.WebSocketProvider(WSS_RPC_URL);
+  if (connecting) return;
+  connecting = true;
+  try {
+    provider = new ethers.WebSocketProvider(WSS_RPC_URL);
 
-  provider.on("error", (err) => log.error("provider error", err?.message || err));
-  provider.websocket?.on?.("close", async (code) => {
-    log.error(`websocket closed (${code ?? "unknown"}); exiting`);
-    process.exit(1);
-  });
+    provider.on("error", (err) => log.error("provider error", err?.message || err));
+    provider.websocket?.on?.("close", async (code) => {
+      log.error(`websocket closed (${code ?? "unknown"}); attempting reconnect`);
+      try {
+        provider?.destroy?.();
+      } catch (_) {}
+      provider = null;
+      await sleep(3000);
+      connecting = false;
+      connect().catch((e) => log.error("reconnect error", e?.message || e));
+    });
 
-  const latest = await provider.getBlockNumber();
-  const last = await getSyncState("trades_last_block", null);
-  const start = last ? Number(last) + 1 : Math.max(latest - 5000, 0);
+    const latest = await provider.getBlockNumber();
+    const last = await getSyncState("trades_last_block", null);
+    const start = last ? Number(last) + 1 : Math.max(latest - 5000, 0);
 
-  if (start <= latest - 1) {
-    await backfill(start, latest - 1);
-  }
-
-  provider.on(getFilter(), async (logItem) => {
-    try {
-      await handleLog(logItem, false);
-    } catch (e) {
-      log.error("log handler error", e?.message || e);
+    if (start <= latest - 1) {
+      await backfill(start, latest - 1);
     }
-  });
 
-  confirmLoop().catch((e) => log.error("confirm loop crash", e?.message || e));
+    provider.on(getFilter(), async (logItem) => {
+      try {
+        await handleLog(logItem, false);
+      } catch (e) {
+        log.error("log handler error", e?.message || e);
+      }
+    });
+  } catch (e) {
+    log.error("connect error", e?.message || e);
+    provider = null;
+    await sleep(5000);
+    connect().catch((err) => log.error("reconnect error", err?.message || err));
+  } finally {
+    connecting = false;
+  }
 }
 
-connect().catch((e) => {
-  log.error(e?.message || e);
-  process.exit(1);
-});
+connect()
+  .then(() => confirmLoop().catch((e) => log.error("confirm loop crash", e?.message || e)))
+  .catch((e) => {
+    log.error(e?.message || e);
+    process.exit(1);
+  });
