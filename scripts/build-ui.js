@@ -6,8 +6,10 @@ import "dotenv/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const SRC = path.join(ROOT, "web", "index.html");
+const STYLE_SRC = path.join(ROOT, "web", "style");
 const DIST_DIR = path.join(ROOT, "dist");
 const DIST = path.join(DIST_DIR, "index.html");
+const DIST_STYLE = path.join(DIST_DIR, "style");
 
 const env = {
   SUPABASE_URL: process.env.SUPABASE_URL,
@@ -37,4 +39,9 @@ Object.keys(env).forEach(key => {
 });
 
 fs.writeFileSync(DIST, html, "utf8");
+// Copy styles so CSS is available alongside built HTML
+if (fs.existsSync(STYLE_SRC)) {
+  fs.rmSync(DIST_STYLE, { recursive: true, force: true });
+  fs.cpSync(STYLE_SRC, DIST_STYLE, { recursive: true });
+}
 console.log("✅ Build complete: dist/index.html");
