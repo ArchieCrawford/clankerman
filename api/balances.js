@@ -2,6 +2,7 @@ const CLANKER_DEFAULT = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
 const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
 const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
 const BASESCAN_BASE = process.env.BASESCAN_API_BASE || "https://api.basescan.org/api";
+const ALCHEMY_BASE_URL = process.env.ALCHEMY_BASE_URL || "";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -11,6 +12,34 @@ async function fetchBalance(url) {
   const json = await res.json();
   if (json.status !== "1") throw new Error(json.result || "basescan error");
   return json.result;
+}
+
+async function rpcCall(method, params) {
+  if (!ALCHEMY_BASE_URL) throw new Error("alchemy url missing");
+  const res = await fetch(ALCHEMY_BASE_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params })
+  });
+  if (!res.ok) throw new Error(`rpc http ${res.status}`);
+  const json = await res.json();
+  if (json.error) throw new Error(json.error.message || "rpc error");
+  return json.result;
+}
+
+function padAddress(addr) {
+  return addr.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+}
+
+async function getNativeAlchemy(address) {
+  const res = await rpcCall("eth_getBalance", [address, "latest"]);
+  return BigInt(res || "0").toString();
+}
+
+async function getTokenAlchemy(token, address) {
+  const data = "0x70a08231" + padAddress(address);
+  const res = await rpcCall("eth_call", [{ to: token, data }, "latest"]);
+  return BigInt(res || "0").toString();
 }
 
 function formatBalance(raw, decimals) {
@@ -29,9 +58,6 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "address is required" });
     }
     const apiKey = process.env.BASESCAN_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: "BASESCAN_API_KEY missing" });
-    }
 
     const tokenMeta = [
       { symbol: "CLANKER", address: process.env.CLANKER_TOKEN || CLANKER_DEFAULT, decimals: 18 },
@@ -48,16 +74,28 @@ export default async function handler(req, res) {
       ? tokenMeta.filter((t) => filterSymbols.includes(t.symbol))
       : tokenMeta;
 
-    const nativeUrl = `${BASESCAN_BASE}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
-    const nativeRaw = await fetchBalance(nativeUrl);
+    let nativeRaw;
+    if (apiKey) {
+      const nativeUrl = `${BASESCAN_BASE}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+      nativeRaw = await fetchBalance(nativeUrl);
+    } else if (ALCHEMY_BASE_URL) {
+      nativeRaw = await getNativeAlchemy(address);
+    } else {
+      return res.status(500).json({ error: "No balance provider (BASESCAN_API_KEY or ALCHEMY_BASE_URL)" });
+    }
 
     const tokenBalances = [];
     for (const t of tokens) {
       // throttle slightly to avoid hammering BaseScan
       await sleep(50);
-      const url = `${BASESCAN_BASE}?module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
       try {
-        const raw = await fetchBalance(url);
+        let raw;
+        if (apiKey) {
+          const url = `${BASESCAN_BASE}?module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
+          raw = await fetchBalance(url);
+        } else {
+          raw = await getTokenAlchemy(t.address, address);
+        }
         tokenBalances.push({
           symbol: t.symbol,
           address: t.address,
