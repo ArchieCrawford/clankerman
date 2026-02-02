@@ -13,7 +13,7 @@ const Q192 = BigInt(2) ** BigInt(192);
 const ALCHEMY_PRICE_KEY = process.env.ALCHEMY_BASE_API_KEY || process.env.ALCHEMY_PRICE_API_KEY || "";
 
 async function getAlchemyPrice(tokenAddress, { days = 7, samples = 24 } = {}) {
-  if (!ALCHEMY_PRICE_KEY) return null;
+  if (!ALCHEMY_PRICE_KEY) throw new Error("ALCHEMY_BASE_API_KEY missing");
   const end = new Date();
   const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
   const base = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/by-address`;
@@ -25,8 +25,10 @@ async function getAlchemyPrice(tokenAddress, { days = 7, samples = 24 } = {}) {
     `&endDate=${encodeURIComponent(end.toISOString())}` +
     `&sampleCount=${samples}`;
   const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`Alchemy price http ${res.status}`);
-  const json = await res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Alchemy price http ${res.status}: ${text || "no body"}`);
+  const json = JSON.parse(text || "{}",
+  );
   const entry = json?.data?.[0] || json?.[0];
   const val = entry?.price?.value ?? entry?.price ?? null;
   const n = Number(val);
@@ -50,6 +52,9 @@ export default async function handler(req, res) {
     const requested = (req.query?.token || req.query?.address || "").toLowerCase();
     const targetAddr = requested === "bnkr" ? (BNKR_DEFAULT || "").toLowerCase() : (requested || clankerToken);
     if (!targetAddr) return res.status(400).json({ error: "token address missing" });
+    if (requested === "bnkr" && !BNKR_DEFAULT) {
+      return res.status(400).json({ error: "BNKR_ADDRESS not set" });
+    }
 
     try {
       const alch = await getAlchemyPrice(targetAddr, { days: 7, samples: 24 });
@@ -58,6 +63,10 @@ export default async function handler(req, res) {
       }
     } catch (e) {
       // fall through to pool
+      // If Alchemy failed and no pool fallback, surface message
+      if (targetAddr !== clankerToken) {
+        return res.status(500).json({ error: e.message || "price error" });
+      }
     }
 
     if (!rpcUrl) return res.status(500).json({ error: "ALCHEMY_BASE_URL missing" });
