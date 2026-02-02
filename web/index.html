@@ -374,6 +374,7 @@
     const activityChartEl = document.getElementById("activity-chart");
     const bnkrInflowEl = document.getElementById("bnkr-inflow");
     const bnkrPendingEl = document.getElementById("bnkr-pending");
+    const seenTx = new Set();
 
     const client = createClient(supabaseUrl, supabaseKey);
     let lastChain = "";
@@ -404,49 +405,95 @@
       return n.toFixed(1);
     }
 
+    // Format balances that may arrive as hex (0x...) or decimal strings with known decimals.
+    function fmtBalance(raw, decimals = 18) {
+      try {
+        if (raw === undefined || raw === null) return "—";
+        const big = BigInt(raw);
+        const denom = 10n ** BigInt(decimals);
+        const whole = big / denom;
+        const frac = big % denom;
+        const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+        const asString = fracStr ? `${whole}.${fracStr}` : whole.toString();
+        return fmtOneDecimal(asString);
+      } catch (_) {
+        return fmtOneDecimal(raw);
+      }
+    }
+
     function getWalletMeta(addr) {
       const key = (addr || "").toLowerCase();
       return WALLET_ROLES[key] || { role: "MARKET", label: "Market" };
     }
 
+    function renderRowHtml(r) {
+      const meta = getWalletMeta(r.maker);
+      const statusClass = r.status === "confirmed" ? "pill confirmed" : "pill pending";
+      const amounts = [
+        r.clanker_amount ? `${r.clanker_amount} CLANKER` : null,
+        r.quote_amount && r.quote_symbol ? `${r.quote_amount} ${r.quote_symbol}` : null
+      ].filter(Boolean).join(" · ");
+      const sideTag = r.side ? r.side.toUpperCase() : "?";
+      const rowClass = r.side && r.side.toLowerCase() === "buy" ? "buy" : "sell";
+      const isBuyback = meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy";
+      if (meta.role === "TREASURY") lastBuybackCount += 0; // placeholder to keep linter happy if unused
+      const sourceClass = meta.role === "TREASURY" ? "role-treasury" : meta.role === "FEE_SOURCE" ? "role-fee" : "role-market";
+      const buybackTag = isBuyback ? `<span class="tag buyback">Buyback</span>` : "";
+      return `
+        <tr class="table-row ${rowClass}">
+          <td class="mono">${r.block_number}</td>
+          <td class="fade">${fmtTime(r.block_time)}</td>
+          <td><span class="${statusClass}">${r.status}</span></td>
+          <td><span class="tag ${rowClass}">${sideTag}</span> ${buybackTag}</td>
+          <td><span class="tag ${sourceClass}">${meta.label}</span></td>
+          <td class="mono">${fmtAddr(r.maker)}</td>
+          <td class="mono">${fmtAddr(r.pool_address)}</td>
+          <td class="mono"><a href="https://basescan.org/tx/${r.tx_hash}" target="_blank" rel="noreferrer">${fmtAddr(r.tx_hash)}</a></td>
+          <td class="wrap">${amounts || ""}</td>
+        </tr>`;
+    }
+
     function renderTable(data) {
       lastBuybackCount = 0;
       let treasuryCount = 0;
-      rowsEl.innerHTML = data
+      const html = data
         .map((r) => {
           const meta = getWalletMeta(r.maker);
-          const statusClass = r.status === "confirmed" ? "pill confirmed" : "pill pending";
-          const amounts = [
-            r.clanker_amount ? `${r.clanker_amount} CLANKER` : null,
-            r.quote_amount && r.quote_symbol ? `${r.quote_amount} ${r.quote_symbol}` : null
-          ].filter(Boolean).join(" · ");
-          const sideTag = r.side ? r.side.toUpperCase() : "?";
-          const rowClass = r.side && r.side.toLowerCase() === "buy" ? "buy" : "sell";
           const isBuyback = meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy";
           if (meta.role === "TREASURY") treasuryCount += 1;
           if (isBuyback) lastBuybackCount += 1;
-          const sourceClass = meta.role === "TREASURY" ? "role-treasury" : meta.role === "FEE_SOURCE" ? "role-fee" : "role-market";
-          const buybackTag = isBuyback ? `<span class="tag buyback">Buyback</span>` : "";
-          return `
-            <tr class="table-row ${rowClass}">
-              <td class="mono">${r.block_number}</td>
-              <td class="fade">${fmtTime(r.block_time)}</td>
-              <td><span class="${statusClass}">${r.status}</span></td>
-              <td><span class="tag ${rowClass}">${sideTag}</span> ${buybackTag}</td>
-              <td><span class="tag ${sourceClass}">${meta.label}</span></td>
-              <td class="mono">${fmtAddr(r.maker)}</td>
-              <td class="mono">${fmtAddr(r.pool_address)}</td>
-              <td class="mono"><a href="https://basescan.org/tx/${r.tx_hash}" target="_blank" rel="noreferrer">${fmtAddr(r.tx_hash)}</a></td>
-              <td class="wrap">${amounts || ""}</td>
-            </tr>`;
+          return renderRowHtml(r);
         })
         .join("");
+
+      rowsEl.innerHTML = html;
+      seenTx.clear();
+      data.forEach((r) => {
+        if (r?.tx_hash) seenTx.add((r.tx_hash || "").toLowerCase());
+      });
 
       if (TREASURY_ADDR) {
         treasuryTradeCountEl.textContent = `Trades: ${treasuryCount}`;
       }
       buybackPill.textContent = `Buybacks: ${lastBuybackCount}`;
       buybackPill.style.display = "inline-flex";
+      countEl.textContent = `${data.length} rows`;
+    }
+
+    function prependTradeRow(r) {
+      const tx = (r?.tx_hash || "").toLowerCase();
+      if (!tx || seenTx.has(tx)) return;
+      seenTx.add(tx);
+      const meta = getWalletMeta(r.maker);
+      if (meta.role === "TREASURY") {
+        const sideLower = (r.side || "").toLowerCase();
+        if (sideLower === "buy") lastBuybackCount += 1;
+        treasuryTradeCountEl.textContent = `Trades: ${Number((treasuryTradeCountEl.textContent || "").replace(/\D+/g, "")) + 1 || 1}`;
+      }
+      buybackPill.textContent = `Buybacks: ${lastBuybackCount}`;
+      buybackPill.style.display = "inline-flex";
+      rowsEl.insertAdjacentHTML("afterbegin", renderRowHtml(r));
+      countEl.textContent = `${seenTx.size} rows`;
     }
 
     async function loadTrades() {
@@ -510,9 +557,9 @@
         const cl = findToken("CLANKER");
         const we = findToken("WETH");
         const us = findToken("USDC");
-        clankerBalanceEl.textContent = fmtOneDecimal(cl?.balance ?? cl?.balanceRaw);
-        wethBalanceEl.textContent = fmtOneDecimal(we?.balance ?? we?.balanceRaw);
-        usdcBalanceEl.textContent = fmtOneDecimal(us?.balance ?? us?.balanceRaw);
+        clankerBalanceEl.textContent = fmtBalance(cl?.balanceRaw ?? cl?.balance, cl?.decimals ?? 18);
+        wethBalanceEl.textContent = fmtBalance(we?.balanceRaw ?? we?.balance, we?.decimals ?? 18);
+        usdcBalanceEl.textContent = fmtBalance(us?.balanceRaw ?? us?.balance, us?.decimals ?? 6);
       } catch (e) {
         try {
           const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
@@ -750,6 +797,26 @@
       }
     }
 
+    function subscribeTrades() {
+      client
+        .channel("trades-realtime")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "trades" },
+          (payload) => {
+            const r = payload?.new || {};
+            if ((r.maker || "").toLowerCase() !== TREASURY_ADDR) return;
+            prependTradeRow(r);
+            loadTreasuryBalances();
+            loadClankerPrice();
+            loadBnkrPrice();
+            loadTreasurySummary();
+            loadTreasuryLastTrade();
+          }
+        )
+        .subscribe();
+    }
+
     loadTrades();
     loadTreasuryBalances();
     loadClankerPrice();
@@ -766,6 +833,7 @@
     setInterval(loadBnkrSummary, 20000);
     bindFilters();
     bindAddress();
+    subscribeTrades();
   </script>
 </body>
 </html>
