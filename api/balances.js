@@ -1,6 +1,7 @@
 const CLANKER_DEFAULT = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
 const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
-const USDC_DEFAULT = "0x833589fCD6eDb6E08f4c7C32D4f71B54b5b0e4D";
+const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
+const BASESCAN_BASE = process.env.BASESCAN_API_BASE || "https://api.basescan.org/api";
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -47,14 +48,14 @@ export default async function handler(req, res) {
       ? tokenMeta.filter((t) => filterSymbols.includes(t.symbol))
       : tokenMeta;
 
-    const nativeUrl = `https://api.basescan.org/api?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+    const nativeUrl = `${BASESCAN_BASE}?module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
     const nativeRaw = await fetchBalance(nativeUrl);
 
     const tokenBalances = [];
     for (const t of tokens) {
       // throttle slightly to avoid hammering BaseScan
       await sleep(50);
-      const url = `https://api.basescan.org/api?module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
+      const url = `${BASESCAN_BASE}?module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
       try {
         const raw = await fetchBalance(url);
         tokenBalances.push({
