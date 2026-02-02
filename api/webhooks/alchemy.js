@@ -7,6 +7,8 @@ const supabase = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
   ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null;
 
+const WEBHOOK_TOKEN = process.env.ALCHEMY_WEBHOOK_TOKEN || "";
+
 function readBody(req) {
   if (req.body) return Promise.resolve(req.body);
   return new Promise((resolve, reject) => {
@@ -29,6 +31,13 @@ export default async function handler(req, res) {
 
   if (!supabase) {
     return res.status(500).json({ error: "Supabase env missing" });
+  }
+
+  if (WEBHOOK_TOKEN) {
+    const provided = req.headers["x-alchemy-token"] || req.headers["x-webhook-token"] || req.query?.token;
+    if (!provided || provided !== WEBHOOK_TOKEN) {
+      return res.status(401).json({ error: "unauthorized" });
+    }
   }
 
   try {
