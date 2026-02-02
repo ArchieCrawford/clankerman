@@ -471,25 +471,39 @@
     async function loadTreasuryBalances() {
       if (!TREASURY_ADDR) return;
       try {
-        const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
-        if (error) throw error;
-        if (!data || !data.length) {
-          clankerBalanceEl.textContent = "—";
-          wethBalanceEl.textContent = "—";
-          usdcBalanceEl.textContent = "—";
-          return;
-        }
-        const findToken = (symbol) => data.find((r) => (r.token_symbol || "").toUpperCase() === symbol.toUpperCase());
+        const res = await fetch(`/api/balances?address=${TREASURY_ADDR}`);
+        if (!res.ok) throw new Error("balances api error");
+        const json = await res.json();
+        const tokens = json.tokens || [];
+        const findToken = (symbol) => tokens.find((t) => (t.symbol || "").toUpperCase() === symbol.toUpperCase());
         const cl = findToken("CLANKER");
         const we = findToken("WETH");
         const us = findToken("USDC");
-        clankerBalanceEl.textContent = cl ? cl.amount : "—";
-        wethBalanceEl.textContent = we ? we.amount : "—";
-        usdcBalanceEl.textContent = us ? `USDC ${us.amount}` : "—";
+        clankerBalanceEl.textContent = cl?.balance || cl?.balanceRaw || "—";
+        wethBalanceEl.textContent = we?.balance || we?.balanceRaw || "—";
+        usdcBalanceEl.textContent = us?.balance || us?.balanceRaw || "—";
       } catch (e) {
-        clankerBalanceEl.textContent = "error";
-        wethBalanceEl.textContent = "error";
-        usdcBalanceEl.textContent = "error";
+        try {
+          const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
+          if (error) throw error;
+          if (!data || !data.length) {
+            clankerBalanceEl.textContent = "—";
+            wethBalanceEl.textContent = "—";
+            usdcBalanceEl.textContent = "—";
+            return;
+          }
+          const findToken = (symbol) => data.find((r) => (r.token_symbol || "").toUpperCase() === symbol.toUpperCase());
+          const cl = findToken("CLANKER");
+          const we = findToken("WETH");
+          const us = findToken("USDC");
+          clankerBalanceEl.textContent = cl ? cl.amount : "—";
+          wethBalanceEl.textContent = we ? we.amount : "—";
+          usdcBalanceEl.textContent = us ? `USDC ${us.amount}` : "—";
+        } catch (err) {
+          clankerBalanceEl.textContent = "error";
+          wethBalanceEl.textContent = "error";
+          usdcBalanceEl.textContent = "error";
+        }
       }
     }
 
