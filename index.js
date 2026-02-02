@@ -2,6 +2,7 @@ import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { ethers } from "ethers";
 
+// Basic timestamped logger used across the listener loops.
 const ts = () => new Date().toISOString();
 const log = {
   info: (...args) => console.log(ts(), "[info]", ...args),
@@ -14,10 +15,10 @@ const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
-const CHAIN = process.env.CHAIN || "base";
-const CONFIRMATIONS = Number(process.env.CONFIRMATIONS || 10);
-const CLANKER_TOKEN = (process.env.CLANKER_TOKEN || "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb").toLowerCase();
-const LOG_CHUNK = Number(process.env.LOG_CHUNK || 8); // limit provider ranges for free-tier RPC
+const CHAIN = process.env.CHAIN || "base"; // label stored with each trade row
+const CONFIRMATIONS = Number(process.env.CONFIRMATIONS || 10); // blocks to wait before marking confirmed
+const CLANKER_TOKEN = (process.env.CLANKER_TOKEN || "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb").toLowerCase(); // token we classify buys/sells against
+const LOG_CHUNK = Number(process.env.LOG_CHUNK || 8); // max block span per getLogs to satisfy free-tier RPC
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const POOL_ADDRESSES = (process.env.POOL_ADDRESSES || "")
@@ -53,17 +54,20 @@ const erc20Meta = new Map();
 const I_PAIR = ["function token0() view returns (address)", "function token1() view returns (address)"];
 const I_ERC20 = ["function symbol() view returns (string)", "function decimals() view returns (uint8)"];
 
+// Persist last-processed block and other state markers.
 async function upsertSyncState(key, value) {
   const { error } = await supabase.from("sync_state").upsert({ key, value: String(value) });
   if (error) throw error;
 }
 
+// Read stored sync markers; fallback when absent.
 async function getSyncState(key, fallback = null) {
   const { data, error } = await supabase.from("sync_state").select("value").eq("key", key).maybeSingle();
   if (error) throw error;
   return data?.value ?? fallback;
 }
 
+// Insert a parsed swap; ignore duplicate constraint violations.
 async function insertTrade(row) {
   const { error } = await supabase.from("trades").insert(row);
   if (error) {
@@ -73,6 +77,7 @@ async function insertTrade(row) {
   }
 }
 
+// Mark pending trades as confirmed once past confirmation depth.
 async function markConfirmed(tx_hash) {
   const { error } = await supabase
     .from("trades")
@@ -82,6 +87,7 @@ async function markConfirmed(tx_hash) {
   if (error) throw error;
 }
 
+// Subscription filter used for both live stream and backfill queries.
 function getFilter() {
   return {
     address: POOL_ADDRESSES,
@@ -97,6 +103,7 @@ const V3_IFACE = new ethers.Interface([
   "event Swap(address indexed sender,address indexed recipient,int256 amount0,int256 amount1,uint160 sqrtPriceX96,uint128 liquidity,int24 tick)"
 ]);
 
+// Decode swap log as V3 (topic match) or V2 (fallback).
 function parseSwapLog(log) {
   const topic0 = (log.topics?.[0] || "").toLowerCase();
   if (topic0 === V3_SWAP_TOPIC) {
@@ -130,6 +137,7 @@ function parseSwapLog(log) {
   };
 }
 
+// Cache ERC20 symbol/decimals per token address.
 async function getErc20Meta(addr) {
   const key = addr.toLowerCase();
   if (erc20Meta.has(key)) return erc20Meta.get(key);
@@ -151,6 +159,7 @@ async function getErc20Meta(addr) {
   return meta;
 }
 
+// Cache pool token addresses and metadata.
 async function getPoolMeta(pool) {
   const key = pool.toLowerCase();
   if (poolMeta.has(key)) return poolMeta.get(key);
@@ -163,6 +172,7 @@ async function getPoolMeta(pool) {
   return meta;
 }
 
+// Format bigint values into human-readable decimals; fallback to raw on error.
 function formatAmount(raw, decimals) {
   try {
     return ethers.formatUnits(raw, decimals);
@@ -171,6 +181,7 @@ function formatAmount(raw, decimals) {
   }
 }
 
+// Determine buy/sell direction vs CLANKER token and produce sized amounts.
 function deriveSideAndAmounts(meta, swap) {
   const isClanker0 = meta.token0 === CLANKER_TOKEN;
   const isClanker1 = meta.token1 === CLANKER_TOKEN;
@@ -246,6 +257,7 @@ function deriveSideAndAmounts(meta, swap) {
   };
 }
 
+// Historical log pull in small chunks to respect provider limits.
 async function backfill(fromBlock, toBlock) {
   log.info(`Backfill start ${fromBlock} -> ${toBlock}`);
   let total = 0;
@@ -275,6 +287,7 @@ async function backfill(fromBlock, toBlock) {
   log.info(`Backfill done (${total} logs)`);
 }
 
+// Process a single swap log: decode, derive amounts, persist, advance sync marker.
 async function handleLog(log, isBackfill = false) {
   let meta;
   try {
@@ -318,6 +331,7 @@ async function handleLog(log, isBackfill = false) {
   if (log.blockNumber > lastNum) await upsertSyncState("trades_last_block", log.blockNumber);
 }
 
+// Periodically mark pending trades confirmed after N blocks.
 async function confirmLoop() {
   while (true) {
     try {
@@ -347,6 +361,7 @@ async function confirmLoop() {
   }
 }
 
+// Establish websocket provider, backfill missed range, and subscribe for live swaps with reconnects.
 async function connect() {
   if (connecting) return;
   connecting = true;
