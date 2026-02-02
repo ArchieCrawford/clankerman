@@ -390,6 +390,12 @@
       return n.toFixed(digits);
     }
 
+    function fmtOneDecimal(v) {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return "—";
+      return n.toFixed(1);
+    }
+
     function getWalletMeta(addr) {
       const key = (addr || "").toLowerCase();
       return WALLET_ROLES[key] || { role: "MARKET", label: "Market" };
@@ -496,9 +502,9 @@
         const cl = findToken("CLANKER");
         const we = findToken("WETH");
         const us = findToken("USDC");
-        clankerBalanceEl.textContent = cl?.balance || cl?.balanceRaw || "—";
-        wethBalanceEl.textContent = we?.balance || we?.balanceRaw || "—";
-        usdcBalanceEl.textContent = us?.balance || us?.balanceRaw || "—";
+        clankerBalanceEl.textContent = fmtOneDecimal(cl?.balance ?? cl?.balanceRaw);
+        wethBalanceEl.textContent = fmtOneDecimal(we?.balance ?? we?.balanceRaw);
+        usdcBalanceEl.textContent = fmtOneDecimal(us?.balance ?? us?.balanceRaw);
       } catch (e) {
         try {
           const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
@@ -513,9 +519,9 @@
           const cl = findToken("CLANKER");
           const we = findToken("WETH");
           const us = findToken("USDC");
-          clankerBalanceEl.textContent = cl ? cl.amount : "—";
-          wethBalanceEl.textContent = we ? we.amount : "—";
-          usdcBalanceEl.textContent = us ? `USDC ${us.amount}` : "—";
+          clankerBalanceEl.textContent = fmtOneDecimal(cl?.amount);
+          wethBalanceEl.textContent = fmtOneDecimal(we?.amount);
+          usdcBalanceEl.textContent = us ? `USDC ${fmtOneDecimal(us.amount)}` : "—";
         } catch (err) {
           clankerBalanceEl.textContent = "error";
           wethBalanceEl.textContent = "error";
@@ -678,8 +684,8 @@
           if ((r.status || "").toLowerCase() === "confirmed") inflow += amt;
           else pending += amt;
         });
-        bnkrInflowEl.textContent = inflow ? `${fmtNumber(inflow, 2)} CLANKER` : "0";
-        bnkrPendingEl.textContent = pending ? `${fmtNumber(pending, 2)} CLANKER` : "0";
+        bnkrInflowEl.textContent = inflow ? `${fmtNumber(inflow, 1)} CLANKER` : "0";
+        bnkrPendingEl.textContent = pending ? `${fmtNumber(pending, 1)} CLANKER` : "0";
       } catch (e) {
         bnkrInflowEl.textContent = "—";
         bnkrPendingEl.textContent = "—";

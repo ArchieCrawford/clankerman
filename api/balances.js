@@ -15,6 +15,19 @@ async function fetchBalance(url) {
   return json.result;
 }
 
+// PRO endpoint; returns token info including divisor (decimals). We use it opportunistically when available.
+async function fetchTokenInfoDecimals(apiKey, contract) {
+  const url = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=token&action=tokeninfo&contractaddress=${contract}&apikey=${apiKey}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`basescan http ${res.status}`);
+  const json = await res.json();
+  if (json.status !== "1") throw new Error(json.result || "basescan error");
+  const first = Array.isArray(json.result) ? json.result[0] : null;
+  const div = first?.divisor ?? first?.TokenDivisor;
+  const dec = div != null ? Number(div) : null;
+  return Number.isFinite(dec) ? dec : null;
+}
+
 async function rpcCall(method, params) {
   if (!ALCHEMY_BASE_URL) throw new Error("alchemy url missing");
   const res = await fetch(ALCHEMY_BASE_URL, {
@@ -97,12 +110,23 @@ export default async function handler(req, res) {
         } else {
           raw = await getTokenAlchemy(t.address, address);
         }
+
+        let decimals = t.decimals;
+        if (!Number.isFinite(decimals) && apiKey) {
+          try {
+            decimals = await fetchTokenInfoDecimals(apiKey, t.address);
+          } catch (_) {
+            decimals = null;
+          }
+        }
+        if (!Number.isFinite(decimals)) decimals = 18;
+
         tokenBalances.push({
           symbol: t.symbol,
           address: t.address,
-          decimals: t.decimals,
+          decimals,
           balanceRaw: raw,
-          balance: formatBalance(raw, t.decimals)
+          balance: formatBalance(raw, decimals)
         });
       } catch (e) {
         tokenBalances.push({ symbol: t.symbol, address: t.address, decimals: t.decimals, error: e.message || "error" });
