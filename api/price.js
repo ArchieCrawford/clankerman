@@ -12,11 +12,22 @@ const POOL_DEFAULT = "0xdf43c40188c1a711bc49fa5922198b8d73291800";
 const Q192 = BigInt(2) ** BigInt(192);
 const ALCHEMY_PRICE_KEY = process.env.ALCHEMY_BASE_API_KEY || process.env.ALCHEMY_PRICE_API_KEY || "";
 
-async function getAlchemyPrice(tokenAddress, { days = 30, samples = 24 } = {}) {
+function getRangeConfig(range) {
+  const endTime = new Date();
+  const r = (range || "24h").toLowerCase();
+  if (r === "4h") return { startTime: new Date(endTime.getTime() - 4 * 60 * 60 * 1000), endTime, sampleCount: 48 };
+  if (r === "7d") return { startTime: new Date(endTime.getTime() - 7 * 24 * 60 * 60 * 1000), endTime, sampleCount: 168 };
+  if (r === "30d") return { startTime: new Date(endTime.getTime() - 30 * 24 * 60 * 60 * 1000), endTime, sampleCount: 180 };
+  return { startTime: new Date(endTime.getTime() - 24 * 60 * 60 * 1000), endTime, sampleCount: 96 };
+}
+
+async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
   if (!ALCHEMY_PRICE_KEY) throw new Error("ALCHEMY_BASE_API_KEY missing");
 
   const priceUrl = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/by-address`;
   const historyUrl = `https://api.g.alchemy.com/prices/v1/${ALCHEMY_PRICE_KEY}/tokens/historical`;
+
+  const { startTime, endTime, sampleCount } = getRangeConfig(range);
 
   // Current price via POST (Alchemy requires addresses array)
   const priceRes = await fetch(priceUrl, {
@@ -35,9 +46,7 @@ async function getAlchemyPrice(tokenAddress, { days = 30, samples = 24 } = {}) {
   const priceNum = Number(priceVal);
   if (!Number.isFinite(priceNum)) throw new Error("Alchemy price missing");
 
-  // History via POST (7d window, sampled)
-  const end = new Date();
-  const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
+  // History via POST using requested range window
   const historyRes = await fetch(historyUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -45,9 +54,9 @@ async function getAlchemyPrice(tokenAddress, { days = 30, samples = 24 } = {}) {
     body: JSON.stringify({
       address: tokenAddress,
       network: "base-mainnet",
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      sampleCount: samples
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString(),
+      sampleCount
     })
   });
   const historyText = await historyRes.text();
@@ -69,6 +78,7 @@ export default async function handler(req, res) {
     const rpcUrl = process.env.ALCHEMY_BASE_URL;
     const poolAddress = process.env.CLANKER_USDC_V3_POOL || POOL_DEFAULT;
     const clankerToken = (process.env.CLANKER_TOKEN || CLANKER_DEFAULT).toLowerCase();
+    const range = (req.query?.range || "24h").toLowerCase();
 
     const requested = (req.query?.token || req.query?.address || "").toLowerCase();
     const targetAddr = requested === "bnkr" ? (BNKR_DEFAULT || "").toLowerCase() : (requested || clankerToken);
@@ -78,7 +88,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      const alch = await getAlchemyPrice(targetAddr, { days: 7, samples: 24 });
+      const alch = await getAlchemyPrice(targetAddr, { range });
       if (alch?.price) {
         return res.json({ price: alch.price, history: alch.history || null, source: "alchemy" });
       }
