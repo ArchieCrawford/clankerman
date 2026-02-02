@@ -56,6 +56,18 @@ async function getTokenAlchemy(token, address) {
   return BigInt(res || "0").toString();
 }
 
+async function getTokenDecimalsRpc(token) {
+  // decimals() selector 0x313ce567
+  const data = "0x313ce567";
+  const res = await rpcCall("eth_call", [{ to: token, data }, "latest"]);
+  if (!res) return null;
+  try {
+    return Number(BigInt(res));
+  } catch (_) {
+    return null;
+  }
+}
+
 function formatBalance(raw, decimals) {
   const big = BigInt(raw || "0");
   const denom = BigInt(10) ** BigInt(decimals);
@@ -119,6 +131,16 @@ export default async function handler(req, res) {
             decimals = null;
           }
         }
+
+        // RPC fallback when tokeninfo is unavailable or no API key
+        if (!Number.isFinite(decimals) && ALCHEMY_BASE_URL) {
+          try {
+            decimals = await getTokenDecimalsRpc(t.address);
+          } catch (_) {
+            decimals = null;
+          }
+        }
+
         if (!Number.isFinite(decimals)) decimals = 18;
 
         tokenBalances.push({
