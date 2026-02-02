@@ -3,7 +3,8 @@ const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
 const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
 const BASESCAN_BASE = process.env.BASESCAN_API_BASE || "https://api.etherscan.io/v2/api";
 const CHAIN_ID = process.env.BASE_CHAIN_ID || "8453";
-const ALCHEMY_BASE_URL = process.env.ALCHEMY_BASE_URL || "";
+const ALCHEMY_KEY = process.env.ALCHEMY_BASE_API_KEY || process.env.ALCHEMY_PRICE_API_KEY || "";
+const ALCHEMY_BASE_URL = process.env.ALCHEMY_BASE_URL || (ALCHEMY_KEY ? `https://base-mainnet.g.alchemy.com/v2/${ALCHEMY_KEY}` : "");
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

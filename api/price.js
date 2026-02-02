@@ -21,6 +21,20 @@ function getRangeConfig(range) {
   return { startTime: new Date(endTime.getTime() - 24 * 60 * 60 * 1000), endTime, sampleCount: 96 };
 }
 
+function normalizeHistoryArray(arr) {
+  if (!Array.isArray(arr)) return null;
+  const out = arr
+    .map((p) => {
+      const ts = p?.timestamp ?? p?.time ?? p?.t ?? p?.blockTimestamp ?? null;
+      const v = p?.value ?? p?.price ?? p?.close ?? p?.open ?? p?.high ?? p?.low ?? p;
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      return ts ? { timestamp: ts, value: n } : { value: n };
+    })
+    .filter(Boolean);
+  return out.length ? out : null;
+}
+
 async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
   if (!ALCHEMY_PRICE_KEY) throw new Error("ALCHEMY_BASE_API_KEY missing");
 
@@ -62,10 +76,11 @@ async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
   const historyText = await historyRes.text();
   if (!historyRes.ok) throw new Error(`Alchemy history http ${historyRes.status}: ${historyText || "no body"}`);
   const historyJson = JSON.parse(historyText || "{}");
-  const historyEntry = historyJson?.data?.[0];
-  const historyArr = historyEntry?.prices || historyEntry?.priceHistory || historyEntry?.history || null;
+  const historyData = Array.isArray(historyJson?.data) ? historyJson.data[0] : historyJson?.data?.[0] || historyJson?.data || null;
+  const rawHistory = historyData?.prices || historyData?.priceHistory || historyData?.history || historyJson?.prices || null;
+  const history = normalizeHistoryArray(rawHistory);
 
-  return { price: priceNum, history: Array.isArray(historyArr) ? historyArr : null };
+  return { price: priceNum, history };
 }
 
 function computePrice(sqrtPriceX96) {
