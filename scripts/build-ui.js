@@ -6,10 +6,10 @@ import "dotenv/config";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const SRC = path.join(ROOT, "web", "index.html");
-const STYLE_SRC = path.join(ROOT, "web", "style");
+const STYLE_SRC = path.join(ROOT, "web", "styles");
 const DIST_DIR = path.join(ROOT, "dist");
 const DIST = path.join(DIST_DIR, "index.html");
-const DIST_STYLE = path.join(DIST_DIR, "style");
+const DIST_STYLE = path.join(DIST_DIR, "styles");
 
 const env = {
   SUPABASE_URL: process.env.SUPABASE_URL,
