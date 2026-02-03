@@ -20,113 +20,137 @@
       </div>
     </div>
 
-    <div class="card-grid" id="treasury-cards">
-      <div class="card" style="grid-column: span 2; min-width: 260px;">
-        <div class="label">Treasury Wallet</div>
-        <div class="value" id="treasury-address">—</div>
-        <div class="row" style="margin:0; gap:8px;">
-          <button class="copy-btn" id="copy-treasury">Copy</button>
-          <a class="pill" id="treasury-link" href="#" target="_blank" rel="noreferrer" style="text-decoration:none;">View on BaseScan</a>
+    <div class="shell">
+      <div class="stack">
+        <section class="hero">
+          <div class="hero-top">
+            <div class="hero-price">
+              <div class="symbol">CLANKER</div>
+              <div class="price" id="clankerPrice">—</div>
+              <div class="delta"><span id="clanker-price-sub">On-chain price</span></div>
+            </div>
+            <div class="hero-meta">
+              <span class="pill" id="treasury-usd-pill">USD: —</span>
+            </div>
+          </div>
+          <div class="hero-bottom">
+            <div class="kpi">
+              <div class="label">Treasury CLANKER</div>
+              <div class="value" id="clanker-balance">—</div>
+              <div class="sub">Held in treasury wallet</div>
+            </div>
+            <div class="kpi">
+              <div class="label">Last Activity</div>
+              <div class="value" id="last-activity">—</div>
+              <div class="sub">No recent treasury actions</div>
+            </div>
+          </div>
+        </section>
+
+        <div class="card-grid" id="treasury-cards">
+          <div class="card" style="grid-column: span 2; min-width: 260px;">
+            <div class="label">Treasury Wallet</div>
+            <div class="value" id="treasury-address">—</div>
+            <div class="sub" id="treasury-usd">USD: —</div>
+            <div class="row" style="margin:0; gap:8px;">
+              <button class="copy-btn" id="copy-treasury">Copy</button>
+              <a class="pill" id="treasury-link" href="#" target="_blank" rel="noreferrer" style="text-decoration:none;">View on BaseScan</a>
+            </div>
+            <div class="sub">Buybacks: <a id="buyback-link" href="#" target="_blank" rel="noreferrer">—</a></div>
+          </div>
+          <div class="card">
+            <div class="label">Treasury USD</div>
+            <div class="value" id="treasuryUsdValue">—</div>
+            <div class="sub" id="treasury-usd-sub">CLANKER + WETH + USDC</div>
+          </div>
+          <div class="card">
+            <div class="label">Treasury WETH / USDC</div>
+            <div class="value" id="weth-balance">—</div>
+            <div class="sub" id="usdc-balance">—</div>
+          </div>
+          <div class="card">
+            <div class="label">BNKR Price</div>
+            <div class="value" id="bnkrPrice">—</div>
+            <div class="sub" id="bnkr-price-sub">Price</div>
+          </div>
+          <div class="card">
+            <div class="label">Treasury Buys (24h)</div>
+            <div class="value" id="buys-24h">—</div>
+            <div class="sub">Count</div>
+          </div>
+          <div class="card">
+            <div class="label">Treasury Sells (24h)</div>
+            <div class="value" id="sells-24h">—</div>
+            <div class="sub">Count</div>
+          </div>
+          <div class="card">
+            <div class="label">Net CLANKER Flow (24h)</div>
+            <div class="value" id="net-flow">—</div>
+            <div class="sub">Buys - sells</div>
+          </div>
+          <div class="card">
+            <div class="label">BNKR Inflow (24h)</div>
+            <div class="value" id="bnkr-inflow">—</div>
+            <div class="sub">Confirmed</div>
+          </div>
+          <div class="card">
+            <div class="label">BNKR Pending</div>
+            <div class="value" id="bnkr-pending">—</div>
+            <div class="sub">Unconfirmed</div>
+          </div>
         </div>
-        <div class="sub">Buybacks: <a id="buyback-link" href="#" target="_blank" rel="noreferrer">—</a></div>
-      </div>
-      <div class="card">
-        <div class="label">Treasury CLANKER</div>
-        <div class="value" id="clanker-balance">—</div>
-        <div class="sub">Balance</div>
-      </div>
-      <div class="card">
-        <div class="label">Treasury WETH / USDC</div>
-        <div class="value" id="weth-balance">—</div>
-        <div class="sub" id="usdc-balance">—</div>
-      </div>
-      <div class="card">
-        <div class="label">CLANKER Price</div>
-        <div class="value" id="clankerPrice">—</div>
-        <div class="sub" id="clanker-price-sub">On-chain price</div>
-      </div>
-      <div class="card">
-        <div class="label">BNKR Price</div>
-        <div class="value" id="bnkrPrice">—</div>
-        <div class="sub" id="bnkr-price-sub">Price</div>
-      </div>
-      <div class="card">
-        <div class="label">Last Activity</div>
-        <div class="value" id="last-activity">—</div>
-        <div class="sub">Treasury trades</div>
-      </div>
-      <div class="card">
-        <div class="label">Treasury Buys (24h)</div>
-        <div class="value" id="buys-24h">—</div>
-        <div class="sub">Count</div>
-      </div>
-      <div class="card">
-        <div class="label">Treasury Sells (24h)</div>
-        <div class="value" id="sells-24h">—</div>
-        <div class="sub">Count</div>
-      </div>
-      <div class="card">
-        <div class="label">Net CLANKER Flow (24h)</div>
-        <div class="value" id="net-flow">—</div>
-        <div class="sub">Buys - sells</div>
-      </div>
-      <div class="card">
-        <div class="label">BNKR Inflow (24h)</div>
-        <div class="value" id="bnkr-inflow">—</div>
-        <div class="sub">Confirmed</div>
-      </div>
-      <div class="card">
-        <div class="label">BNKR Pending</div>
-        <div class="value" id="bnkr-pending">—</div>
-        <div class="sub">Unconfirmed</div>
-      </div>
-    </div>
 
-      <div class="chart">
-        <div class="row" style="margin-bottom:6px;">
-          <h2 id="chart-title">CLANKER Price History</h2>
-          <span class="pill" id="treasury-trade-count">Range: 4H</span>
+        <div class="chart chart-panel">
+          <div class="row" style="margin-bottom:6px;">
+            <h2 id="chart-title">CLANKER Price History</h2>
+            <span class="pill" id="treasury-trade-count">Source: —</span>
+          </div>
+          <div class="chart-bars" id="activity-chart"></div>
         </div>
-        <div class="chart-bars" id="activity-chart"></div>
       </div>
 
-    <div class="controls">
-      <div class="segmented" id="filter-mode">
-        <button data-mode="all" class="active">All</button>
-        <button data-mode="treasury">Treasury</button>
-        <button data-mode="bnkr">BNKR</button>
-        <button data-mode="buyback">Buybacks</button>
-      </div>
-      <div class="segmented" id="price-range">
-        <button data-range="4h" class="active">4H</button>
-        <button data-range="24h">24H</button>
-        <button data-range="7d">7D</button>
-        <button data-range="30d">30D</button>
-      </div>
-      <input class="input" id="pool-filter" placeholder="Filter by pool address" />
-      <input class="input" id="min-clanker" placeholder="Min CLANKER amount" type="number" min="0" step="1" />
-      <input class="input" id="search" placeholder="Search tx hash or maker" />
-      <span class="pill">Auto-refresh 5s</span>
-      <span class="pill" id="buyback-pill" style="display:none;"></span>
-    </div>
+      <div class="stack">
+        <div class="panel subtle">
+          <div class="controls">
+            <div class="segmented" id="filter-mode">
+              <button data-mode="all" class="active">All</button>
+              <button data-mode="treasury">Treasury</button>
+              <button data-mode="bnkr">BNKR</button>
+              <button data-mode="buyback">Buybacks</button>
+            </div>
+            <div class="segmented" id="price-range">
+              <button data-range="4h" class="active">4H</button>
+              <button data-range="24h">24H</button>
+              <button data-range="7d">7D</button>
+              <button data-range="30d">30D</button>
+            </div>
+            <input class="input" id="pool-filter" placeholder="Filter by pool address" />
+            <input class="input" id="min-clanker" placeholder="Min CLANKER amount" type="number" min="0" step="1" />
+            <input class="input" id="search" placeholder="Search tx hash or maker" />
+            <span class="pill">Auto-refresh 5s</span>
+            <span class="pill" id="buyback-pill" style="display:none;"></span>
+          </div>
 
-    <div class="table-shell">
-      <table>
-        <thead>
-          <tr>
-            <th>Block</th>
-            <th>Time</th>
-            <th>Status</th>
-            <th>Side</th>
-            <th>Source</th>
-            <th>Maker</th>
-            <th>Pool</th>
-            <th>Tx</th>
-            <th>Amounts</th>
-          </tr>
-        </thead>
-        <tbody id="rows"></tbody>
-      </table>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Block</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                  <th>Side</th>
+                  <th>Source</th>
+                  <th>Maker</th>
+                  <th>Pool</th>
+                  <th>Tx</th>
+                  <th>Amounts</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -158,6 +182,10 @@
     const treasuryAddressEl = document.getElementById("treasury-address");
     const copyTreasuryBtn = document.getElementById("copy-treasury");
     const treasuryTradeCountEl = document.getElementById("treasury-trade-count");
+    const treasuryUsdEl = document.getElementById("treasury-usd");
+    const treasuryUsdPillEl = document.getElementById("treasury-usd-pill");
+    const treasuryUsdValueEl = document.getElementById("treasuryUsdValue");
+    const treasuryUsdSubEl = document.getElementById("treasury-usd-sub");
     const clankerBalanceEl = document.getElementById("clanker-balance");
     const wethBalanceEl = document.getElementById("weth-balance");
     const usdcBalanceEl = document.getElementById("usdc-balance");
@@ -179,6 +207,8 @@
     let lastBuybackCount = 0;
     let viewMode = "all";
     let priceRange = "4h";
+    let latestPrices = { clanker: null, weth: null, usdc: 1 };
+    let latestBalances = { clanker: null, weth: null, usdc: null };
 
     function fmtTime(ts) {
       const d = new Date(ts);
@@ -202,6 +232,57 @@
       const n = Number(v);
       if (!Number.isFinite(n)) return "—";
       return n.toFixed(1);
+    }
+
+    function toHumanBalance(raw, decimals = 18) {
+      try {
+        if (raw === undefined || raw === null) return null;
+        const big = BigInt(raw);
+        const denom = 10n ** BigInt(decimals);
+        const whole = big / denom;
+        const frac = big % denom;
+        const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+        const asString = fracStr ? `${whole}.${fracStr}` : whole.toString();
+        const n = Number(asString);
+        return Number.isFinite(n) ? n : null;
+      } catch (_) {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : null;
+      }
+    }
+
+    function fmtUsd(val) {
+      if (!Number.isFinite(val)) return "—";
+      if (Math.abs(val) >= 1e6) return `$${(val / 1e6).toFixed(2)}M`;
+      if (Math.abs(val) >= 1e3) return `$${(val / 1e3).toFixed(2)}K`;
+      return `$${val.toFixed(2)}`;
+    }
+
+    function renderTreasuryUsd() {
+      const cl = latestBalances.clanker;
+      const we = latestBalances.weth;
+      const us = latestBalances.usdc;
+      const clPx = latestPrices.clanker;
+      const wePx = latestPrices.weth;
+      const usPx = latestPrices.usdc;
+      if (!Number.isFinite(cl) || !Number.isFinite(we) || !Number.isFinite(us) || !Number.isFinite(clPx) || !Number.isFinite(wePx)) {
+        if (treasuryUsdEl) treasuryUsdEl.textContent = "USD: —";
+        if (treasuryUsdPillEl) treasuryUsdPillEl.textContent = "USD: —";
+        if (treasuryUsdValueEl) treasuryUsdValueEl.textContent = "—";
+        if (treasuryUsdSubEl) treasuryUsdSubEl.textContent = "CLANKER + WETH + USDC";
+        return;
+      }
+      const clUsd = cl * clPx;
+      const weUsd = we * wePx;
+      const usUsd = us * (Number.isFinite(usPx) ? usPx : 1);
+      const total = clUsd + weUsd + usUsd;
+      const pretty = fmtUsd(total);
+      if (treasuryUsdEl) treasuryUsdEl.textContent = `USD: ${pretty}`;
+      if (treasuryUsdPillEl) treasuryUsdPillEl.textContent = `USD: ${pretty}`;
+      if (treasuryUsdValueEl) treasuryUsdValueEl.textContent = pretty;
+      if (treasuryUsdSubEl) {
+        treasuryUsdSubEl.textContent = `CLANKER $${Math.round(clUsd)} · WETH $${Math.round(weUsd)} · USDC $${Math.round(usUsd)}`;
+      }
     }
 
     // Format balances that may arrive as hex (0x...) or decimal strings with known decimals.
@@ -352,6 +433,10 @@
         clankerBalanceEl.textContent = fmtBalance(cl?.balanceRaw ?? cl?.balance, cl?.decimals ?? 18);
         wethBalanceEl.textContent = fmtBalance(we?.balanceRaw ?? we?.balance, we?.decimals ?? 18);
         usdcBalanceEl.textContent = fmtBalance(us?.balanceRaw ?? us?.balance, us?.decimals ?? 6);
+        latestBalances.clanker = toHumanBalance(cl?.balanceRaw ?? cl?.balance, cl?.decimals ?? 18);
+        latestBalances.weth = toHumanBalance(we?.balanceRaw ?? we?.balance, we?.decimals ?? 18);
+        latestBalances.usdc = toHumanBalance(us?.balanceRaw ?? us?.balance, us?.decimals ?? 6);
+        renderTreasuryUsd();
       } catch (e) {
         try {
           const { data, error } = await client.rpc("get_treasury_balances", { addr: TREASURY_ADDR });
@@ -360,6 +445,8 @@
             clankerBalanceEl.textContent = "—";
             wethBalanceEl.textContent = "—";
             usdcBalanceEl.textContent = "—";
+            latestBalances = { clanker: null, weth: null, usdc: null };
+            renderTreasuryUsd();
             return;
           }
           const findToken = (symbol) => data.find((r) => (r.token_symbol || "").toUpperCase() === symbol.toUpperCase());
@@ -369,10 +456,16 @@
           clankerBalanceEl.textContent = fmtOneDecimal(cl?.amount);
           wethBalanceEl.textContent = fmtOneDecimal(we?.amount);
           usdcBalanceEl.textContent = us ? `USDC ${fmtOneDecimal(us.amount)}` : "—";
+          latestBalances.clanker = Number(cl?.amount);
+          latestBalances.weth = Number(we?.amount);
+          latestBalances.usdc = Number(us?.amount);
+          renderTreasuryUsd();
         } catch (err) {
           clankerBalanceEl.textContent = "error";
           wethBalanceEl.textContent = "error";
           usdcBalanceEl.textContent = "error";
+          latestBalances = { clanker: null, weth: null, usdc: null };
+          renderTreasuryUsd();
         }
       }
     }
@@ -387,7 +480,9 @@
         if (!Number.isFinite(n)) throw new Error("invalid price");
         clankerPriceEl.textContent = `$${n.toFixed(4)}`;
         renderPriceHistory(history);
-        treasuryTradeCountEl.textContent = `${priceRange.toUpperCase()} · ${history?.length ?? 0} pts`;
+        treasuryTradeCountEl.textContent = `Source: ${source === "alchemy" ? "Alchemy" : "On-chain"}`;
+        latestPrices.clanker = n;
+        renderTreasuryUsd();
         if (Array.isArray(history) && history.length > 1) {
           // Try to read last/first value; history shape may be array of numbers or objects with price/value
           const first = history[0]?.value ?? history[0]?.price ?? history[0];
@@ -406,8 +501,8 @@
       } catch (e) {
         clankerPriceEl.textContent = "—";
         if (clankerPriceSubEl) clankerPriceSubEl.textContent = "Price unavailable";
-        renderPriceHistory([]);
-        treasuryTradeCountEl.textContent = `${priceRange.toUpperCase()} · —`;
+        activityChartEl.innerHTML = "<div class='fade'>Price unavailable</div>";
+        treasuryTradeCountEl.textContent = "Source: —";
       }
     }
 
@@ -442,6 +537,23 @@
       } catch (e) {
         bnkrPriceEl.textContent = "—";
         bnkrPriceSubEl.textContent = "Price unavailable";
+      }
+    }
+
+    async function loadRefPrice(token) {
+      try {
+        const res = await fetch(`/api/price?token=${token}`);
+        if (!res.ok) throw new Error("ref price api error");
+        const { price } = await res.json();
+        const n = Number(price);
+        if (!Number.isFinite(n)) throw new Error("invalid ref price");
+        if (token === "weth") latestPrices.weth = n;
+        if (token === "usdc") latestPrices.usdc = n;
+        renderTreasuryUsd();
+      } catch (_) {
+        if (token === "weth") latestPrices.weth = null;
+        if (token === "usdc") latestPrices.usdc = 1;
+        renderTreasuryUsd();
       }
     }
 
@@ -504,37 +616,46 @@
       }
     }
 
-    function normalizeHistoryPoint(p) {
-      const t = p?.timestamp ?? p?.time ?? p?.t ?? null;
-      const v = p?.value ?? p?.price ?? p?.close ?? p;
-      const n = Number(v);
-      if (!Number.isFinite(n)) return null;
-      return { t: t ? new Date(t).getTime() : null, v: n };
-    }
-
     function renderPriceHistory(history) {
-      const points = (history || []).map(normalizeHistoryPoint).filter(Boolean);
-      const slice = points.slice(-12);
-      if (!slice.length) {
-        activityChartEl.innerHTML = "<div class=\"fade\">No price history</div>";
+      if (!Array.isArray(history) || history.length < 2) {
+        activityChartEl.innerHTML = "<div class='fade'>No history</div>";
+        return;
+      }
+      const points = history
+        .map((h) => ({
+          t: h?.time ?? h?.timestamp ?? h?.t ?? null,
+          v: Number(h?.value ?? h?.price ?? h)
+        }))
+        .filter((p) => Number.isFinite(p.v));
+
+      if (points.length < 2) {
+        activityChartEl.innerHTML = "<div class='fade'>No valid points</div>";
         return;
       }
 
-      const minV = Math.min(...slice.map((p) => p.v));
-      const maxV = Math.max(...slice.map((p) => p.v));
-      const span = Math.max(1e-9, maxV - minV);
+      const slice = points.slice(-12);
+      const vals = slice.map((p) => p.v);
+      const max = Math.max(...vals);
+      const min = Math.min(...vals);
+      const range = max - min || 1;
 
       activityChartEl.innerHTML = slice
-        .map((p, idx) => {
-          const h = ((p.v - minV) / span) * 100;
-          const label = priceRange === "4h" || priceRange === "24h" ? `${idx - (slice.length - 1)}h` : `${idx - (slice.length - 1)}d`;
+        .map((p, i) => {
+          const height = ((p.v - min) / range) * 100;
+          let label = `${slice.length - i - 1}`;
+          if (p.t) {
+            const d = new Date(p.t);
+            if (!Number.isNaN(d.getTime())) {
+              label = d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+            }
+          }
           return `
             <div class="chart-bar">
               <div class="bar-stack">
-                <div class="bar-buy" style="height:${Math.max(3, h)}%"></div>
+                <div class="bar-buy" style="height:${height}%"></div>
               </div>
               <div class="bar-label">${label}</div>
-            </div>`;
+             </div>`;
         })
         .join("");
     }
@@ -627,7 +748,6 @@
             loadTreasuryBalances();
             loadClankerPrice();
             loadBnkrPrice();
-            loadTreasurySummary();
             loadTreasuryLastTrade();
           }
         )
@@ -638,14 +758,16 @@
     loadTreasuryBalances();
     loadClankerPrice();
     loadBnkrPrice();
-    loadTreasurySummary();
+    loadRefPrice("weth");
+    loadRefPrice("usdc");
     loadTreasuryLastTrade();
     loadBnkrSummary();
     setInterval(loadTrades, 5000);
     setInterval(loadTreasuryBalances, 15000);
     setInterval(loadClankerPrice, 15000);
     setInterval(loadBnkrPrice, 15000);
-    setInterval(loadTreasurySummary, 15000);
+    setInterval(() => loadRefPrice("weth"), 15000);
+    setInterval(() => loadRefPrice("usdc"), 15000);
     setInterval(loadTreasuryLastTrade, 30000);
     setInterval(loadBnkrSummary, 20000);
     bindFilters();

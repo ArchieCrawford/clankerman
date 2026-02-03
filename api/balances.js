@@ -8,25 +8,68 @@ const ALCHEMY_BASE_URL = process.env.ALCHEMY_BASE_URL || (ALCHEMY_KEY ? `https:/
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+function buildBaseScanUrl(module, action, extraParams = {}, apiKey = "") {
+  const params = new URLSearchParams({
+    chainid: String(CHAIN_ID),
+    module,
+    action,
+    apikey: apiKey
+  });
+  Object.entries(extraParams).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    params.set(key, String(value));
+  });
+  return `${BASESCAN_BASE}?${params.toString()}`;
+}
+
+function extractBaseScanError(json) {
+  const msg = json?.message || json?.result || "basescan error";
+  return typeof msg === "string" ? msg : JSON.stringify(msg);
+}
+
+async function fetchBaseScanJson(url) {
+  const delays = [250, 750, 1750];
+  let lastError = null;
+  for (let i = 0; i < delays.length; i += 1) {
+    const res = await fetch(url, { cache: "no-store" });
+    const text = await res.text();
+    let json = null;
+    try {
+      json = JSON.parse(text || "{}");
+    } catch (_) {
+      json = null;
+    }
+
+    if (res.ok && json?.status === "1") return json;
+
+    const message = json ? extractBaseScanError(json) : (text || "basescan error");
+    const isRateLimit = res.status === 429 || /rate limit/i.test(message);
+    lastError = new Error(`basescan http ${res.status}: ${message}`);
+
+    if (isRateLimit && i < delays.length - 1) {
+      await sleep(delays[i]);
+      continue;
+    }
+    throw lastError;
+  }
+  throw lastError || new Error("basescan error");
+}
+
 async function fetchBalance(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`basescan http ${res.status}`);
-  const json = await res.json();
-  if (json.status !== "1") throw new Error(json.result || "basescan error");
+  const json = await fetchBaseScanJson(url);
   return json.result;
 }
 
 // PRO endpoint; returns token info including divisor (decimals). We use it opportunistically when available.
 async function fetchTokenInfoDecimals(apiKey, contract) {
-  const url = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=token&action=tokeninfo&contractaddress=${contract}&apikey=${apiKey}`;
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`basescan http ${res.status}`);
-  const json = await res.json();
-  if (json.status !== "1") throw new Error(json.result || "basescan error");
+  const url = buildBaseScanUrl("token", "tokeninfo", { contractaddress: contract }, apiKey);
+  const json = await fetchBaseScanJson(url);
   const first = Array.isArray(json.result) ? json.result[0] : null;
-  const div = first?.divisor ?? first?.TokenDivisor;
+  const div = first?.divisor ?? first?.TokenDivisor ?? first?.tokenDivisor;
   const dec = div != null ? Number(div) : null;
-  return Number.isFinite(dec) ? dec : null;
+  if (!Number.isFinite(dec)) return null;
+  if (dec < 0 || dec > 36) return null;
+  return dec;
 }
 
 async function rpcCall(method, params) {
@@ -84,6 +127,9 @@ export default async function handler(req, res) {
     if (!address) {
       return res.status(400).json({ error: "address is required" });
     }
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      return res.status(400).json({ error: "invalid address" });
+    }
     const apiKey = process.env.BASESCAN_API_KEY;
 
     const tokenMeta = [
@@ -103,7 +149,7 @@ export default async function handler(req, res) {
 
     let nativeRaw;
     if (apiKey) {
-      const nativeUrl = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=account&action=balance&address=${address}&tag=latest&apikey=${apiKey}`;
+      const nativeUrl = buildBaseScanUrl("account", "balance", { address, tag: "latest" }, apiKey);
       nativeRaw = await fetchBalance(nativeUrl);
     } else if (ALCHEMY_BASE_URL) {
       nativeRaw = await getNativeAlchemy(address);
@@ -118,7 +164,12 @@ export default async function handler(req, res) {
       try {
         let raw;
         if (apiKey) {
-          const url = `${BASESCAN_BASE}?chainid=${encodeURIComponent(CHAIN_ID)}&module=account&action=tokenbalance&contractaddress=${t.address}&address=${address}&tag=latest&apikey=${apiKey}`;
+          const url = buildBaseScanUrl(
+            "account",
+            "tokenbalance",
+            { contractaddress: t.address, address, tag: "latest" },
+            apiKey
+          );
           raw = await fetchBalance(url);
         } else {
           raw = await getTokenAlchemy(t.address, address);

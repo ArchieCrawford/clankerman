@@ -7,6 +7,8 @@ const V3_POOL_ABI = [
 ];
 
 const CLANKER_DEFAULT = "0x1bc0c42215582d5a085795f4badbac3ff36d1bcb";
+const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
+const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
 const BNKR_DEFAULT = process.env.BNKR_ADDRESS || "";
 const POOL_DEFAULT = "0xdf43c40188c1a711bc49fa5922198b8d73291800";
 const Q192 = BigInt(2) ** BigInt(192);
@@ -93,10 +95,18 @@ export default async function handler(req, res) {
     const rpcUrl = process.env.ALCHEMY_BASE_URL;
     const poolAddress = process.env.CLANKER_USDC_V3_POOL || POOL_DEFAULT;
     const clankerToken = (process.env.CLANKER_TOKEN || CLANKER_DEFAULT).toLowerCase();
+    const wethToken = (process.env.WETH_TOKEN || WETH_DEFAULT).toLowerCase();
+    const usdcToken = (process.env.USDC_TOKEN || USDC_DEFAULT).toLowerCase();
     const range = (req.query?.range || "24h").toLowerCase();
 
     const requested = (req.query?.token || req.query?.address || "").toLowerCase();
-    const targetAddr = requested === "bnkr" ? (BNKR_DEFAULT || "").toLowerCase() : (requested || clankerToken);
+    const targetAddr = requested === "bnkr"
+      ? (BNKR_DEFAULT || "").toLowerCase()
+      : requested === "weth"
+      ? wethToken
+      : requested === "usdc"
+      ? usdcToken
+      : (requested || clankerToken);
     if (!targetAddr) return res.status(400).json({ error: "token address missing" });
     if (requested === "bnkr" && !BNKR_DEFAULT) {
       return res.status(400).json({ error: "BNKR_ADDRESS not set" });
