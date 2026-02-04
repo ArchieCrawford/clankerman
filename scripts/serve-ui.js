@@ -51,6 +51,7 @@ app.get("/api/balances", balancesHandler);
 app.get("/api/price", priceHandler);
 app.all("/api/webhook", webhookHandler);
 app.all("/api/webhooks/alchemy", alchemyWebhookHandler);
+app.use("/api", (req, res) => res.status(404).json({ error: "not found" }));
 
 // Serve injected HTML for index routes
 app.get("/", (_, res) => {
