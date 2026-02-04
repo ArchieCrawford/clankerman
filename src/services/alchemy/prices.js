@@ -76,36 +76,41 @@ export async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
   const priceNum = Number(priceVal);
   if (!Number.isFinite(priceNum)) throw new AppError("Alchemy price missing", { status: 500, code: "ALCHEMY_PRICE" });
 
-  const historyRes = await fetchJson(historyUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      address: tokenAddress,
-      network: "base-mainnet",
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      sampleCount
-    })
-  });
-
-  if (!historyRes.ok) {
-    throw new AppError(`Alchemy history http ${historyRes.status}: ${historyRes.text || "no body"}`, {
-      status: historyRes.status || 500,
-      code: "ALCHEMY_HISTORY"
+  let history = null;
+  try {
+    const historyRes = await fetchJson(historyUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        address: tokenAddress,
+        network: "base-mainnet",
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        sampleCount
+      })
     });
-  }
 
-  let historyJson = historyRes.json || {};
-  if (historyRes.text) {
-    try {
-      historyJson = JSON.parse(historyRes.text || "{}");
-    } catch (_) {
-      historyJson = historyRes.json || {};
+    if (!historyRes.ok) {
+      throw new AppError(`Alchemy history http ${historyRes.status}: ${historyRes.text || "no body"}`, {
+        status: historyRes.status || 500,
+        code: "ALCHEMY_HISTORY"
+      });
     }
+
+    let historyJson = historyRes.json || {};
+    if (historyRes.text) {
+      try {
+        historyJson = JSON.parse(historyRes.text || "{}");
+      } catch (_) {
+        historyJson = historyRes.json || {};
+      }
+    }
+    const historyData = Array.isArray(historyJson?.data) ? historyJson.data[0] : historyJson?.data?.[0] || historyJson?.data || null;
+    const rawHistory = historyData?.prices || historyData?.priceHistory || historyData?.history || historyJson?.prices || null;
+    history = normalizeHistoryArray(rawHistory);
+  } catch (_) {
+    history = null;
   }
-  const historyData = Array.isArray(historyJson?.data) ? historyJson.data[0] : historyJson?.data?.[0] || historyJson?.data || null;
-  const rawHistory = historyData?.prices || historyData?.priceHistory || historyData?.history || historyJson?.prices || null;
-  const history = normalizeHistoryArray(rawHistory);
 
   return { price: priceNum, history };
 }
