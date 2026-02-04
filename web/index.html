@@ -100,6 +100,9 @@
           </div>
         </div>
 
+      </div>
+
+      <div class="stack">
         <div class="chart chart-panel">
           <div class="row" style="margin-bottom:6px;">
             <h2 id="chart-title">CLANKER Price History</h2>
@@ -107,9 +110,6 @@
           </div>
           <div class="chart-bars" id="activity-chart"></div>
         </div>
-      </div>
-
-      <div class="stack">
         <section class="panel">
           <div class="row" style="justify-content:space-between;">
             <h2>Treasury Activity</h2>
@@ -175,6 +175,7 @@
     const FEE_ACCUM_ADDR = "__FEE_ACCUM_ADDRESS__".toLowerCase();
     const WALLET_ROLES = {};
     if (TREASURY_ADDR) WALLET_ROLES[TREASURY_ADDR] = { role: "TREASURY", label: "Treasury" };
+    if (BUYBACK_ADDR) WALLET_ROLES[BUYBACK_ADDR] = { role: "BUYBACK", label: "Buyback" };
     if (BNKR_ADDR) WALLET_ROLES[BNKR_ADDR] = { role: "FEE_SOURCE", label: "BNKR Fee Source" };
     if (FEE_ACCUM_ADDR) WALLET_ROLES[FEE_ACCUM_ADDR] = { role: "FEE_ACCUM", label: "Fee Accumulator" };
     const PAGE_SIZE = 200;
@@ -325,9 +326,15 @@
       ].filter(Boolean).join(" · ");
       const sideTag = r.side ? r.side.toUpperCase() : "?";
       const rowClass = r.side && r.side.toLowerCase() === "buy" ? "buy" : "sell";
-      const isBuyback = meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy";
+      const isBuyback = meta.role === "BUYBACK" || (meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy");
       if (meta.role === "TREASURY") lastBuybackCount += 0; // placeholder to keep linter happy if unused
-      const sourceClass = meta.role === "TREASURY" ? "role-treasury" : meta.role === "FEE_SOURCE" ? "role-fee" : "role-market";
+      const sourceClass = meta.role === "TREASURY"
+        ? "role-treasury"
+        : meta.role === "BUYBACK"
+        ? "buyback"
+        : meta.role === "FEE_SOURCE"
+        ? "role-fee"
+        : "role-market";
       const buybackTag = isBuyback ? `<span class="tag buyback">Buyback</span>` : "";
       return `
         <tr class="table-row ${rowClass}">
@@ -348,7 +355,7 @@
       const html = data
         .map((r) => {
           const meta = getWalletMeta(r.maker);
-          const isBuyback = meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy";
+          const isBuyback = meta.role === "BUYBACK" || (meta.role === "TREASURY" && (r.side || "").toLowerCase() === "buy");
           if (isBuyback) lastBuybackCount += 1;
           return renderRowHtml(r);
         })
@@ -369,9 +376,9 @@
       if (!tx || seenTx.has(tx)) return;
       seenTx.add(tx);
       const meta = getWalletMeta(r.maker);
-      if (meta.role === "TREASURY") {
+      if (meta.role === "TREASURY" || meta.role === "BUYBACK") {
         const sideLower = (r.side || "").toLowerCase();
-        if (sideLower === "buy") lastBuybackCount += 1;
+        if (meta.role === "BUYBACK" || sideLower === "buy") lastBuybackCount += 1;
       }
       buybackPill.textContent = `Buybacks: ${lastBuybackCount}`;
       buybackPill.style.display = "inline-flex";
@@ -399,13 +406,15 @@
         const filtered = (data || []).filter((r) => {
           const makerLower = (r.maker || "").toLowerCase();
           const sideLower = (r.side || "").toLowerCase();
+          const isBuybackRow = (BUYBACK_ADDR && makerLower === BUYBACK_ADDR) ||
+            (TREASURY_ADDR && makerLower === TREASURY_ADDR && sideLower === "buy");
           const modeMatch =
             viewMode === "treasury"
               ? TREASURY_ADDR && makerLower === TREASURY_ADDR
               : viewMode === "bnkr"
               ? BNKR_ADDR && makerLower === BNKR_ADDR
               : viewMode === "buyback"
-              ? TREASURY_ADDR && makerLower === TREASURY_ADDR && sideLower === "buy"
+              ? isBuybackRow
               : true;
           const meetsMin = !minClanker || Number(r.clanker_amount || 0) >= minClanker;
           const meetsSearch = !searchTerm ||
@@ -489,7 +498,7 @@
         const n = Number(price);
         if (!Number.isFinite(n)) throw new Error("invalid price");
         clankerPriceEl.textContent = `$${n.toFixed(4)}`;
-        renderPriceHistory(history);
+        renderPriceHistory(history, source);
         treasuryTradeCountEl.textContent = `Source: ${source === "alchemy" ? "Alchemy" : "On-chain"}`;
         latestPrices.clanker = n;
         renderTreasuryUsd();
@@ -626,9 +635,12 @@
       }
     }
 
-    function renderPriceHistory(history) {
+    function renderPriceHistory(history, source) {
       if (!Array.isArray(history) || history.length < 2) {
-        activityChartEl.innerHTML = "<div class='fade'>No history</div>";
+        const note = source === "alchemy"
+          ? "History unavailable"
+          : "History requires Alchemy pricing";
+        activityChartEl.innerHTML = `<div class='fade'>${note}</div>`;
         return;
       }
       const points = history
