@@ -9,7 +9,8 @@
     "pool-tokens": "node scripts/pool_tokens.js",
     "treasury": "node scripts/treasury_watch.js",
     "ui": "node scripts/serve-ui.js",
-    "build:ui": "node scripts/build-ui.js"
+    "build:ui": "node scripts/build-ui.js",
+    "alchemy:webhooks": "node scripts/alchemy_notify.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.3",

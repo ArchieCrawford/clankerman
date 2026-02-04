@@ -2,13 +2,20 @@
 
 import { config } from "../config/env.js";
 import { createLogger } from "../lib/logger.js";
-import { normalizeError } from "../lib/errors.js";
+import { normalizeError, AppError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
 import { isAddress } from "../lib/validate.js";
 import { getNativeBalance, getTokenBalance, resolveTokenDecimals } from "../services/explorers/basescan.js";
 
 const logger = createLogger("api:balances");
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const withTimeout = (promise, ms, label) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new AppError(`${label} timeout`, { status: 504, code: "TIMEOUT" })), ms)
+    )
+  ]);
 
 const formatBalance = (raw, decimals) => {
   const big = BigInt(raw || "0");
@@ -60,13 +67,21 @@ export default async function balancesHandler(req, res) {
       : tokenMeta;
 
     const timeoutMs = 3000;
-    const nativeRaw = await getNativeBalance(address.toLowerCase(), { apiKey, rpcUrl, timeoutMs });
+    const nativeRaw = await withTimeout(
+      getNativeBalance(address.toLowerCase(), { apiKey, rpcUrl, timeoutMs }),
+      timeoutMs + 500,
+      "native balance"
+    );
 
     const tokenBalances = await Promise.all(
       tokens.map((token, idx) => (async () => {
         await sleep(80 * idx);
         try {
-          const raw = await getTokenBalance(token.address, address.toLowerCase(), { apiKey, rpcUrl, timeoutMs });
+          const raw = await withTimeout(
+            getTokenBalance(token.address, address.toLowerCase(), { apiKey, rpcUrl, timeoutMs }),
+            timeoutMs + 500,
+            `${token.symbol} balance`
+          );
           let decimals = token.decimals;
           if (!Number.isFinite(decimals)) {
             const resolved = await resolveTokenDecimals(token.address, { apiKey, rpcUrl, logger, timeoutMs });

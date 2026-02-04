@@ -45,12 +45,19 @@ const html = template
   .replace(/__FEE_ACCUM_ADDRESS__/g, FEE_ACCUM_ADDRESS);
 
 const app = express();
-app.use(express.json({ limit: "2mb" }));
+app.use(express.json({
+  limit: "2mb",
+  verify: (req, _res, buf) => {
+    req.rawBody = buf.toString("utf8");
+  }
+}));
 
 app.get("/api/balances", balancesHandler);
 app.get("/api/price", priceHandler);
-app.all("/api/webhook", webhookHandler);
-app.all("/api/webhooks/alchemy", alchemyWebhookHandler);
+app.get("/api/webhook", (_req, res) => res.status(405).json({ error: "method not allowed" }));
+app.post("/api/webhook", webhookHandler);
+app.get("/api/webhooks/alchemy", (_req, res) => res.status(405).json({ error: "method not allowed" }));
+app.post("/api/webhooks/alchemy", alchemyWebhookHandler);
 app.use("/api", (req, res) => res.status(404).json({ error: "not found" }));
 
 // Serve injected HTML for index routes

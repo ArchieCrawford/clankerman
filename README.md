@@ -158,6 +158,28 @@ npm run treasury
 ```
 Shows native + listed token balances and recent trades where `maker` matches TREASURY_ADDRESS.
 
+## Alchemy webhooks (Notify API)
+
+List webhooks:
+```bash
+npm run alchemy:webhooks -- list
+```
+
+Create a webhook using env defaults:
+```bash
+ALCHEMY_WEBHOOK_URL=https://your-url
+ALCHEMY_WEBHOOK_TYPE=ADDRESS_ACTIVITY
+ALCHEMY_WEBHOOK_ADDRESSES=0x123,0x456
+ALCHEMY_WEBHOOK_NETWORK=BASE_MAINNET
+ALCHEMY_WEBHOOK_TOKEN=your_notify_token
+npm run alchemy:webhooks -- create
+```
+
+Or pass a raw JSON body:
+```bash
+npm run alchemy:webhooks -- create --body ./webhook.json
+```
+
 ## What to fill in next
 - Provide a pool address and whether it is V2 or V3 so we can decode side/amounts.
 - For V3/Aerodrome, swap topics differ; update `SWAP_TOPIC` and parser accordingly.
