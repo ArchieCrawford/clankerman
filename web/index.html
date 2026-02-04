@@ -241,7 +241,7 @@
     function fmtOneDecimal(v) {
       const n = Number(v);
       if (!Number.isFinite(n)) return "—";
-      return n.toFixed(1);
+      return n.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     }
 
     function toHumanBalance(raw, decimals = 18) {
