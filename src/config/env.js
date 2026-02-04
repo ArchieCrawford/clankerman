@@ -66,6 +66,9 @@ export const config = {
     swapTopic: optionalEnv("SWAP_TOPIC", "").trim().toLowerCase(),
     clankerUsdcV3Pool: toLowerAddress(optionalEnv("CLANKER_USDC_V3_POOL", POOL_DEFAULT))
   },
+  pricing: {
+    cmcApiKey: optionalEnv("CMC_API_KEY", "")
+  },
   health: {
     baseUrl: optionalEnv("HEALTHCHECK_BASE_URL", "")
   }

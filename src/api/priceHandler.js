@@ -6,7 +6,7 @@ import { createLogger } from "../lib/logger.js";
 import { normalizeError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
 import { getAlchemyPrice } from "../services/alchemy/prices.js";
-import { getCoingeckoEthPrice } from "../services/pricing/coingecko.js";
+import { getCoinMarketCapPrice } from "../services/pricing/coinmarketcap.js";
 import { isAddress } from "../lib/validate.js";
 
 const logger = createLogger("api:price");
@@ -79,8 +79,8 @@ export default async function priceHandler(req, res) {
         }
         if (targetAddr === wethToken) {
           try {
-            const price = await getCoingeckoEthPrice();
-            return res.json({ price, history: null, source: "coingecko" });
+            const price = await getCoinMarketCapPrice("ETH");
+            return res.json({ price, history: null, source: "coinmarketcap" });
           } catch (fallbackErr) {
             const fallback = normalizeError(fallbackErr);
             return sendError(fallback.status || 500, fallback.message || "price error");
