@@ -5,6 +5,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import balancesHandler from "../api/balances.js";
 import priceHandler from "../api/price.js";
+import webhookHandler from "../api/webhook.js";
+import alchemyWebhookHandler from "../api/webhooks/alchemy.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,9 +45,12 @@ const html = template
   .replace(/__FEE_ACCUM_ADDRESS__/g, FEE_ACCUM_ADDRESS);
 
 const app = express();
+app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/balances", balancesHandler);
 app.get("/api/price", priceHandler);
+app.all("/api/webhook", webhookHandler);
+app.all("/api/webhooks/alchemy", alchemyWebhookHandler);
 
 // Serve injected HTML for index routes
 app.get("/", (_, res) => {
