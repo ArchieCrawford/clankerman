@@ -45,16 +45,20 @@ export async function runEndpointHealthChecks(options) {
     const { ok, status, json } = await fetchJson(url);
     if (!ok) throw new AppError(`http ${status}`, { status, code: "HEALTHCHECK" });
     const price = Number(json?.price);
-    const note = Number.isFinite(price) ? `price ${price}` : "missing price";
-    return { ok: true, status, note };
+    if (!Number.isFinite(price)) {
+      return { ok: false, status, note: "missing price" };
+    }
+    return { ok: true, status, note: `price ${price}` };
   });
 
   await runCheck("api/balances", async () => {
     const url = buildUrl(baseUrl, "/api/balances");
     const { ok, status, json } = await fetchJson(url);
     if (!ok) throw new AppError(`http ${status}`, { status, code: "HEALTHCHECK" });
-    const note = json?.native?.balanceRaw ? "native balance ok" : "missing native balance";
-    return { ok: true, status, note };
+    if (!json?.native?.balanceRaw) {
+      return { ok: false, status, note: "missing native balance" };
+    }
+    return { ok: true, status, note: "native balance ok" };
   });
 
   await runCheck("api/webhook", async () => {
