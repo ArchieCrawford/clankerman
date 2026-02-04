@@ -68,7 +68,10 @@ app.get("/index.html", (_, res) => {
 app.use(express.static(WEB_ROOT, { index: false }));
 
 // SPA fallback
-app.get("*", (_, res) => {
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/")) {
+    return res.status(404).json({ error: "not found" });
+  }
   res.set("Content-Type", "text/html; charset=utf-8");
   res.send(html);
 });

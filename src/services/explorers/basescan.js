@@ -8,22 +8,23 @@ import { getNativeBalanceRpc, getTokenBalanceRpc, getTokenDecimalsRpc } from "..
 /**
  * Fetch native balance via BaseScan or RPC fallback.
  * @param {string} address
- * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string, logger?: ReturnType<import('../../lib/logger.js').createLogger> }} [options]
+ * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string, logger?: ReturnType<import('../../lib/logger.js').createLogger>, timeoutMs?: number }} [options]
  */
 export async function getNativeBalance(address, options = {}) {
   const apiKey = options.apiKey ?? config.explorers.basescanApiKey;
   const baseUrl = options.baseUrl ?? config.explorers.basescanApiBase;
   const chainId = options.chainId ?? config.chain.baseChainId;
   const rpcUrl = options.rpcUrl ?? config.alchemy.baseUrl;
+  const timeoutMs = options.timeoutMs;
 
   if (apiKey) {
-    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan" });
+    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
     const json = await client.request("account", "balance", { address, tag: "latest" });
     return json.result;
   }
 
   if (rpcUrl) {
-    return getNativeBalanceRpc(rpcUrl, address);
+    return getNativeBalanceRpc(rpcUrl, address, { timeoutMs });
   }
 
   throw new AppError("No balance provider (BASESCAN_API_KEY or ALCHEMY_BASE_URL)", {
@@ -36,16 +37,17 @@ export async function getNativeBalance(address, options = {}) {
  * Fetch token balance via BaseScan or RPC fallback.
  * @param {string} token
  * @param {string} address
- * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string }} [options]
+ * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string, timeoutMs?: number }} [options]
  */
 export async function getTokenBalance(token, address, options = {}) {
   const apiKey = options.apiKey ?? config.explorers.basescanApiKey;
   const baseUrl = options.baseUrl ?? config.explorers.basescanApiBase;
   const chainId = options.chainId ?? config.chain.baseChainId;
   const rpcUrl = options.rpcUrl ?? config.alchemy.baseUrl;
+  const timeoutMs = options.timeoutMs;
 
   if (apiKey) {
-    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan" });
+    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
     const json = await client.request("account", "tokenbalance", {
       contractaddress: token,
       address,
@@ -55,7 +57,7 @@ export async function getTokenBalance(token, address, options = {}) {
   }
 
   if (rpcUrl) {
-    return getTokenBalanceRpc(rpcUrl, token, address);
+    return getTokenBalanceRpc(rpcUrl, token, address, { timeoutMs });
   }
 
   throw new AppError("No balance provider (BASESCAN_API_KEY or ALCHEMY_BASE_URL)", {
@@ -67,16 +69,17 @@ export async function getTokenBalance(token, address, options = {}) {
 /**
  * Fetch token decimals from BaseScan tokeninfo endpoint.
  * @param {string} contract
- * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number }} [options]
+ * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, timeoutMs?: number }} [options]
  */
 export async function getTokenInfoDecimals(contract, options = {}) {
   const apiKey = options.apiKey ?? config.explorers.basescanApiKey;
   const baseUrl = options.baseUrl ?? config.explorers.basescanApiBase;
   const chainId = options.chainId ?? config.chain.baseChainId;
+  const timeoutMs = options.timeoutMs;
 
   if (!apiKey) return null;
 
-  const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan" });
+  const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
   const json = await client.request("token", "tokeninfo", { contractaddress: contract });
   const first = Array.isArray(json.result) ? json.result[0] : null;
   const div = first?.divisor ?? first?.TokenDivisor ?? first?.tokenDivisor;
@@ -89,16 +92,17 @@ export async function getTokenInfoDecimals(contract, options = {}) {
 /**
  * Resolve token decimals with RPC fallback.
  * @param {string} contract
- * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string }} [options]
+ * @param {{ apiKey?: string, baseUrl?: string, chainId?: string|number, rpcUrl?: string, timeoutMs?: number }} [options]
  */
 export async function resolveTokenDecimals(contract, options = {}) {
   const apiKey = options.apiKey ?? config.explorers.basescanApiKey;
   const rpcUrl = options.rpcUrl ?? config.alchemy.baseUrl;
+  const timeoutMs = options.timeoutMs;
 
   let decimals = null;
   if (apiKey) {
     try {
-      decimals = await getTokenInfoDecimals(contract, options);
+      decimals = await getTokenInfoDecimals(contract, { ...options, timeoutMs });
     } catch (err) {
       const normalized = normalizeError(err);
       if (options.logger?.debug) options.logger.debug("tokeninfo decimals error", normalized.message);
@@ -108,7 +112,7 @@ export async function resolveTokenDecimals(contract, options = {}) {
 
   if (!Number.isFinite(decimals) && rpcUrl) {
     try {
-      decimals = await getTokenDecimalsRpc(rpcUrl, contract);
+      decimals = await getTokenDecimalsRpc(rpcUrl, contract, { timeoutMs });
     } catch (err) {
       const normalized = normalizeError(err);
       if (options.logger?.debug) options.logger.debug("rpc decimals error", normalized.message);

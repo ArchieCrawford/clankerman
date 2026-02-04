@@ -19,10 +19,11 @@ const isRetryable = (status, message) => {
  * @param {string} url
  * @param {string} method
  * @param {unknown[]} params
- * @param {{ retries?: number[] }} [options]
+ * @param {{ retries?: number[], timeoutMs?: number }} [options]
  */
 export async function jsonRpcCall(url, method, params, options = {}) {
   const delays = Array.isArray(options.retries) && options.retries.length ? options.retries : RETRY_DELAYS;
+  const timeoutMs = options.timeoutMs;
   let lastError = null;
 
   for (let i = 0; i < delays.length; i += 1) {
@@ -31,7 +32,8 @@ export async function jsonRpcCall(url, method, params, options = {}) {
       const { ok, status, json, text } = await fetchJson(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        timeoutMs
       });
 
       if (!ok) {
@@ -81,8 +83,8 @@ const padAddress = (addr) => addr.toLowerCase().replace(/^0x/, "").padStart(64, 
  * @param {string} rpcUrl
  * @param {string} address
  */
-export async function getNativeBalanceRpc(rpcUrl, address) {
-  const result = await jsonRpcCall(rpcUrl, "eth_getBalance", [address, "latest"]);
+export async function getNativeBalanceRpc(rpcUrl, address, options = {}) {
+  const result = await jsonRpcCall(rpcUrl, "eth_getBalance", [address, "latest"], options);
   return BigInt(result || "0").toString();
 }
 
@@ -92,9 +94,9 @@ export async function getNativeBalanceRpc(rpcUrl, address) {
  * @param {string} token
  * @param {string} address
  */
-export async function getTokenBalanceRpc(rpcUrl, token, address) {
+export async function getTokenBalanceRpc(rpcUrl, token, address, options = {}) {
   const data = `0x70a08231${padAddress(address)}`;
-  const result = await jsonRpcCall(rpcUrl, "eth_call", [{ to: token, data }, "latest"]);
+  const result = await jsonRpcCall(rpcUrl, "eth_call", [{ to: token, data }, "latest"], options);
   return BigInt(result || "0").toString();
 }
 
@@ -103,9 +105,9 @@ export async function getTokenBalanceRpc(rpcUrl, token, address) {
  * @param {string} rpcUrl
  * @param {string} token
  */
-export async function getTokenDecimalsRpc(rpcUrl, token) {
+export async function getTokenDecimalsRpc(rpcUrl, token, options = {}) {
   const data = "0x313ce567";
-  const result = await jsonRpcCall(rpcUrl, "eth_call", [{ to: token, data }, "latest"]);
+  const result = await jsonRpcCall(rpcUrl, "eth_call", [{ to: token, data }, "latest"], options);
   if (!result) return null;
   try {
     return Number(BigInt(result));

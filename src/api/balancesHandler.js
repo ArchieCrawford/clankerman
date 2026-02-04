@@ -59,38 +59,40 @@ export default async function balancesHandler(req, res) {
       ? tokenMeta.filter((t) => filterSymbols.includes(t.symbol))
       : tokenMeta;
 
-    const nativeRaw = await getNativeBalance(address.toLowerCase(), { apiKey, rpcUrl });
+    const timeoutMs = 3000;
+    const nativeRaw = await getNativeBalance(address.toLowerCase(), { apiKey, rpcUrl, timeoutMs });
 
-    const tokenBalances = [];
-    for (const token of tokens) {
-      await sleep(50);
-      try {
-        const raw = await getTokenBalance(token.address, address.toLowerCase(), { apiKey, rpcUrl });
-        let decimals = token.decimals;
-        if (!Number.isFinite(decimals)) {
-          const resolved = await resolveTokenDecimals(token.address, { apiKey, rpcUrl, logger });
-          if (Number.isFinite(resolved)) decimals = resolved;
+    const tokenBalances = await Promise.all(
+      tokens.map((token, idx) => (async () => {
+        await sleep(80 * idx);
+        try {
+          const raw = await getTokenBalance(token.address, address.toLowerCase(), { apiKey, rpcUrl, timeoutMs });
+          let decimals = token.decimals;
+          if (!Number.isFinite(decimals)) {
+            const resolved = await resolveTokenDecimals(token.address, { apiKey, rpcUrl, logger, timeoutMs });
+            if (Number.isFinite(resolved)) decimals = resolved;
+          }
+          if (!Number.isFinite(decimals)) decimals = 18;
+
+          return {
+            symbol: token.symbol,
+            address: token.address,
+            decimals,
+            balanceRaw: raw,
+            balance: formatBalance(raw, decimals)
+          };
+        } catch (err) {
+          const normalized = normalizeError(err);
+          logger.debug("token balance error", { requestId, symbol: token.symbol, message: normalized.message });
+          return {
+            symbol: token.symbol,
+            address: token.address,
+            decimals: token.decimals,
+            error: normalized.message || "error"
+          };
         }
-        if (!Number.isFinite(decimals)) decimals = 18;
-
-        tokenBalances.push({
-          symbol: token.symbol,
-          address: token.address,
-          decimals,
-          balanceRaw: raw,
-          balance: formatBalance(raw, decimals)
-        });
-      } catch (err) {
-        const normalized = normalizeError(err);
-        logger.debug("token balance error", { requestId, symbol: token.symbol, message: normalized.message });
-        tokenBalances.push({
-          symbol: token.symbol,
-          address: token.address,
-          decimals: token.decimals,
-          error: normalized.message || "error"
-        });
-      }
-    }
+      })())
+    );
 
     return res.status(200).json({
       address,

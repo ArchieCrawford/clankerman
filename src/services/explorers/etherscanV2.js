@@ -46,15 +46,16 @@ export function extractEtherscanV2Error(json) {
 /**
  * Fetch JSON from an Etherscan v2 endpoint with retry on rate limits.
  * @param {string} url
- * @param {{ retries?: number[], label?: string }} [options]
+ * @param {{ retries?: number[], label?: string, timeoutMs?: number }} [options]
  */
 export async function fetchEtherscanV2Json(url, options = {}) {
   const delays = Array.isArray(options.retries) && options.retries.length ? options.retries : RETRY_DELAYS;
   const label = options.label || "etherscan";
+  const timeoutMs = options.timeoutMs;
   let lastError = null;
 
   for (let i = 0; i < delays.length; i += 1) {
-    const { ok, status, json, text } = await fetchJson(url);
+    const { ok, status, json, text } = await fetchJson(url, { timeoutMs });
     if (ok && json?.status === "1") return json;
 
     const message = json ? extractEtherscanV2Error(json) : (text || "etherscan error");
@@ -73,17 +74,18 @@ export async function fetchEtherscanV2Json(url, options = {}) {
 
 /**
  * Create a small helper client for Etherscan v2 endpoints.
- * @param {{ baseUrl: string, chainId: string|number, apiKey?: string, label?: string }} options
+ * @param {{ baseUrl: string, chainId: string|number, apiKey?: string, label?: string, timeoutMs?: number }} options
  */
 export function createEtherscanV2Client(options) {
-  const { baseUrl, chainId, apiKey = "", label = "etherscan" } = options;
+  const { baseUrl, chainId, apiKey = "", label = "etherscan", timeoutMs } = options;
 
   return {
     buildUrl: (module, action, params = {}, keyOverride = apiKey) =>
       buildEtherscanV2Url({ baseUrl, chainId, module, action, apiKey: keyOverride, params }),
     request: (module, action, params = {}, keyOverride = apiKey) =>
       fetchEtherscanV2Json(buildEtherscanV2Url({ baseUrl, chainId, module, action, apiKey: keyOverride, params }), {
-        label
+        label,
+        timeoutMs
       })
   };
 }
