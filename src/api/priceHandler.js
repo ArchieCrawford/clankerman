@@ -7,6 +7,7 @@ import { normalizeError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
 import { getAlchemyPrice } from "../services/alchemy/prices.js";
 import { getCoingeckoEthPrice } from "../services/pricing/coingecko.js";
+import { isAddress } from "../lib/validate.js";
 
 const logger = createLogger("api:price");
 
@@ -45,18 +46,24 @@ export default async function priceHandler(req, res) {
     const usdcToken = config.tokens.usdc;
     const range = (req.query?.range || "24h").toLowerCase();
 
-    const requested = (req.query?.token || req.query?.address || "").toLowerCase();
+    const requestedRaw = (req.query?.token || req.query?.address || "").toLowerCase();
+    const requested = requestedRaw.trim();
     const targetAddr = requested === "bnkr"
       ? config.tokens.bnkr
       : requested === "weth"
       ? wethToken
       : requested === "usdc"
       ? usdcToken
-      : (requested || clankerToken);
+      : requested
+      ? requested
+      : clankerToken;
 
     if (!targetAddr) return sendError(400, "token address missing");
     if (requested === "bnkr" && !config.tokens.bnkr) {
       return sendError(400, "BNKR_ADDRESS not set");
+    }
+    if (requested && !["clanker", "weth", "usdc", "bnkr"].includes(requested) && !isAddress(targetAddr)) {
+      return sendError(400, "unsupported token");
     }
 
     try {
