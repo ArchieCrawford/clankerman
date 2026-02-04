@@ -66,6 +66,9 @@ export default async function priceHandler(req, res) {
     } catch (err) {
       const normalized = normalizeError(err, { message: "price error" });
       if (targetAddr !== clankerToken) {
+        if (targetAddr === usdcToken) {
+          return res.json({ price: 1, history: null, source: "static" });
+        }
         return sendError(500, normalized.message || "price error");
       }
       logger.debug("alchemy price fallback", { requestId, message: normalized.message });

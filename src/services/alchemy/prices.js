@@ -63,7 +63,14 @@ export async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
     });
   }
 
-  const priceJson = priceRes.text ? JSON.parse(priceRes.text || "{}") : priceRes.json || {};
+  let priceJson = priceRes.json || {};
+  if (priceRes.text) {
+    try {
+      priceJson = JSON.parse(priceRes.text || "{}");
+    } catch (_) {
+      priceJson = priceRes.json || {};
+    }
+  }
   const priceEntry = priceJson?.data?.[0] || priceJson?.[0];
   const priceVal = priceEntry?.prices?.[0]?.value ?? priceEntry?.price?.value ?? priceEntry?.price ?? null;
   const priceNum = Number(priceVal);
@@ -88,7 +95,14 @@ export async function getAlchemyPrice(tokenAddress, { range = "24h" } = {}) {
     });
   }
 
-  const historyJson = historyRes.text ? JSON.parse(historyRes.text || "{}") : historyRes.json || {};
+  let historyJson = historyRes.json || {};
+  if (historyRes.text) {
+    try {
+      historyJson = JSON.parse(historyRes.text || "{}");
+    } catch (_) {
+      historyJson = historyRes.json || {};
+    }
+  }
   const historyData = Array.isArray(historyJson?.data) ? historyJson.data[0] : historyJson?.data?.[0] || historyJson?.data || null;
   const rawHistory = historyData?.prices || historyData?.priceHistory || historyData?.history || historyJson?.prices || null;
   const history = normalizeHistoryArray(rawHistory);

@@ -8,8 +8,8 @@ const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
 const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
 const POOL_DEFAULT = "0xdf43c40188c1a711bc49fa5922198b8d73291800";
 
-const alchemyBaseApiKey = optionalEnv("ALCHEMY_BASE_API_KEY", "");
-const alchemyPriceApiKey = optionalEnv("ALCHEMY_PRICE_API_KEY", "");
+const alchemyBaseApiKey = optionalEnv("ALCHEMY_BASE_API_KEY", "") || optionalEnv("ALCHEMY_API_KEY", "");
+const alchemyPriceApiKey = optionalEnv("ALCHEMY_PRICE_API_KEY", "") || optionalEnv("ALCHEMY_API_KEY", "");
 const derivedAlchemyBaseUrl =
   optionalEnv("ALCHEMY_BASE_URL", "") ||
   (alchemyBaseApiKey || alchemyPriceApiKey
