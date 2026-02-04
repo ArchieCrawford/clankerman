@@ -6,6 +6,7 @@ import { createLogger } from "../lib/logger.js";
 import { normalizeError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
 import { getAlchemyPrice } from "../services/alchemy/prices.js";
+import { getCoingeckoEthPrice } from "../services/pricing/coingecko.js";
 
 const logger = createLogger("api:price");
 
@@ -68,6 +69,15 @@ export default async function priceHandler(req, res) {
       if (targetAddr !== clankerToken) {
         if (targetAddr === usdcToken) {
           return res.json({ price: 1, history: null, source: "static" });
+        }
+        if (targetAddr === wethToken) {
+          try {
+            const price = await getCoingeckoEthPrice();
+            return res.json({ price, history: null, source: "coingecko" });
+          } catch (fallbackErr) {
+            const fallback = normalizeError(fallbackErr);
+            return sendError(fallback.status || 500, fallback.message || "price error");
+          }
         }
         return sendError(500, normalized.message || "price error");
       }

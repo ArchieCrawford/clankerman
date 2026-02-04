@@ -765,7 +765,8 @@
           { event: "INSERT", schema: "public", table: "trades" },
           (payload) => {
             const r = payload?.new || {};
-            if ((r.maker || "").toLowerCase() !== TREASURY_ADDR) return;
+            const makerLower = (r.maker || "").toLowerCase();
+            if (makerLower !== TREASURY_ADDR && makerLower !== BUYBACK_ADDR) return;
             prependTradeRow(r);
             loadTreasuryBalances();
             loadClankerPrice();

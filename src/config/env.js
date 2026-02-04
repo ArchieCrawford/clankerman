@@ -8,13 +8,21 @@ const WETH_DEFAULT = "0x4200000000000000000000000000000000000006";
 const USDC_DEFAULT = "0x833589fcd6edb6e08f4c7c32d4f71b54b5b0e4d";
 const POOL_DEFAULT = "0xdf43c40188c1a711bc49fa5922198b8d73291800";
 
+const isHttpUrl = (value) => /^https?:\/\//i.test(String(value || ""));
+const pickHttpUrl = (value) => (isHttpUrl(value) ? String(value).trim() : "");
+
 const alchemyBaseApiKey = optionalEnv("ALCHEMY_BASE_API_KEY", "") || optionalEnv("ALCHEMY_API_KEY", "");
 const alchemyPriceApiKey = optionalEnv("ALCHEMY_PRICE_API_KEY", "") || optionalEnv("ALCHEMY_API_KEY", "");
+const explicitAlchemyBaseUrl = pickHttpUrl(optionalEnv("ALCHEMY_BASE_URL", ""));
 const derivedAlchemyBaseUrl =
-  optionalEnv("ALCHEMY_BASE_URL", "") ||
-  (alchemyBaseApiKey || alchemyPriceApiKey
+  alchemyBaseApiKey || alchemyPriceApiKey
     ? `https://base-mainnet.g.alchemy.com/v2/${alchemyBaseApiKey || alchemyPriceApiKey}`
-    : "");
+    : "";
+const fallbackRpcUrl =
+  pickHttpUrl(optionalEnv("BASE_RPC_URL", "")) ||
+  pickHttpUrl(optionalEnv("RPC_URL", "")) ||
+  pickHttpUrl(optionalEnv("NEXT_PUBLIC_BASE_RPC", ""));
+const resolvedRpcUrl = explicitAlchemyBaseUrl || derivedAlchemyBaseUrl || fallbackRpcUrl;
 
 export const config = {
   supabase: {
@@ -38,7 +46,7 @@ export const config = {
     feeAccum: toLowerAddress(optionalEnv("FEE_ACCUM_ADDRESS", ""))
   },
   alchemy: {
-    baseUrl: derivedAlchemyBaseUrl,
+    baseUrl: resolvedRpcUrl,
     baseApiKey: alchemyBaseApiKey,
     priceApiKey: alchemyPriceApiKey,
     priceKey: alchemyBaseApiKey || alchemyPriceApiKey,
