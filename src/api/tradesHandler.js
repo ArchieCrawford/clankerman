@@ -10,7 +10,7 @@ const logger = createLogger("api:trades");
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
-const getQuery = (req) => {
+const parseQuery = (req) => {
   if (req?.query && Object.keys(req.query).length) return req.query;
   try {
     const url = new URL(req.url || "", "http://localhost");
@@ -45,13 +45,13 @@ export default async function tradesHandler(req, res) {
   try {
     strictApi({ requireSupabase: false });
 
-    const query = getQuery(req);
-    const limit = clamp(toInt(query?.limit || "200", 200), 1, 1000);
-    const sinceRaw = query?.since ? new Date(query.since) : null;
+    const filters = parseQuery(req);
+    const limit = clamp(toInt(filters?.limit || "200", 200), 1, 1000);
+    const sinceRaw = filters?.since ? new Date(filters.since) : null;
     const since = sinceRaw && !Number.isNaN(sinceRaw.getTime()) ? sinceRaw.toISOString() : null;
-    const maker = query?.maker ? toLowerAddress(query.maker) : "";
-    const pool = query?.pool ? String(query.pool).toLowerCase() : "";
-    const status = query?.status ? String(query.status).toLowerCase() : "";
+    const maker = filters?.maker ? toLowerAddress(filters.maker) : "";
+    const pool = filters?.pool ? String(filters.pool).toLowerCase() : "";
+    const status = filters?.status ? String(filters.status).toLowerCase() : "";
 
     const supabaseUrl = config.supabase.url;
     const supabaseKey = config.supabase.serviceRoleKey || config.supabase.anonKey;

@@ -18,9 +18,16 @@ export async function getNativeBalance(address, options = {}) {
   const timeoutMs = options.timeoutMs;
 
   if (apiKey) {
-    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
-    const json = await client.request("account", "balance", { address, tag: "latest" });
-    return json.result;
+    try {
+      const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
+      const json = await client.request("account", "balance", { address, tag: "latest" });
+      return json.result;
+    } catch (err) {
+      if (rpcUrl) {
+        return getNativeBalanceRpc(rpcUrl, address, { timeoutMs });
+      }
+      throw err;
+    }
   }
 
   if (rpcUrl) {
@@ -47,13 +54,20 @@ export async function getTokenBalance(token, address, options = {}) {
   const timeoutMs = options.timeoutMs;
 
   if (apiKey) {
-    const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
-    const json = await client.request("account", "tokenbalance", {
-      contractaddress: token,
-      address,
-      tag: "latest"
-    });
-    return json.result;
+    try {
+      const client = createEtherscanV2Client({ baseUrl, chainId, apiKey, label: "basescan", timeoutMs });
+      const json = await client.request("account", "tokenbalance", {
+        contractaddress: token,
+        address,
+        tag: "latest"
+      });
+      return json.result;
+    } catch (err) {
+      if (rpcUrl) {
+        return getTokenBalanceRpc(rpcUrl, token, address, { timeoutMs });
+      }
+      throw err;
+    }
   }
 
   if (rpcUrl) {
