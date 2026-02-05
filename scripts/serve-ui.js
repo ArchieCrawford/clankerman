@@ -5,6 +5,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import balancesHandler from "../api/balances.js";
 import priceHandler from "../api/price.js";
+import tradesHandler from "../api/trades.js";
 import webhookHandler from "../api/webhook.js";
 import alchemyWebhookHandler from "../api/webhooks/alchemy.js";
 
@@ -54,6 +55,7 @@ app.use(express.json({
 
 app.get("/api/balances", balancesHandler);
 app.get("/api/price", priceHandler);
+app.get("/api/trades", tradesHandler);
 app.get("/api/webhook", (_req, res) => res.status(405).json({ error: "method not allowed" }));
 app.post("/api/webhook", webhookHandler);
 app.get("/api/webhooks/alchemy", (_req, res) => res.status(405).json({ error: "method not allowed" }));

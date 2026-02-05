@@ -221,6 +221,19 @@
     let latestPrices = { clanker: null, weth: null, usdc: 1 };
     let latestBalances = { clanker: null, weth: null, usdc: null };
 
+    async function fetchTrades(params = {}) {
+      const qs = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") return;
+        qs.set(key, String(value));
+      });
+      const url = qs.toString() ? `/api/trades?${qs.toString()}` : "/api/trades";
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`trades api error (${res.status})`);
+      const json = await res.json();
+      return Array.isArray(json?.data) ? json.data : [];
+    }
+
     function fmtTime(ts) {
       const d = new Date(ts);
       return d.toLocaleString();
@@ -392,16 +405,10 @@
       const searchTerm = searchEl.value.trim().toLowerCase();
       statusEl.textContent = "Loading…";
       try {
-        let query = client
-          .from("trades")
-          .select("tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain")
-          .order("block_number", { ascending: false })
-          .limit(PAGE_SIZE);
-
-        if (poolFilter) query = query.ilike("pool_address", `%${poolFilter}%`);
-
-        const { data, error } = await query;
-        if (error) throw error;
+        const data = await fetchTrades({
+          limit: PAGE_SIZE,
+          pool: poolFilter || undefined
+        });
 
         const filtered = (data || []).filter((r) => {
           const makerLower = (r.maker || "").toLowerCase();
@@ -580,13 +587,7 @@
       if (!TREASURY_ADDR) return;
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       try {
-        const { data, error } = await client
-          .from("trades")
-          .select("side,block_time,clanker_amount,maker")
-          .gte("block_time", since)
-          .order("block_time", { ascending: false })
-          .limit(500);
-        if (error) throw error;
+        const data = await fetchTrades({ since, limit: 500, maker: TREASURY_ADDR });
 
         let buys = 0;
         let sells = 0;
@@ -594,8 +595,6 @@
         let latest = null;
 
         (data || []).forEach((r) => {
-          const makerLower = (r.maker || "").toLowerCase();
-          if (makerLower !== TREASURY_ADDR) return;
           const amt = Number(r.clanker_amount || 0);
           const ts = new Date(r.block_time).getTime();
           if (!latest || ts > latest) latest = ts;
@@ -622,14 +621,10 @@
     async function loadTreasuryLastTrade() {
       if (!TREASURY_ADDR) return;
       try {
-        const { data, error } = await client
-          .from("trades")
-          .select("block_time,maker")
-          .order("block_time", { ascending: false })
-          .limit(20);
-        if (error) throw error;
-        const hit = (data || []).find((r) => (r.maker || "").toLowerCase() === TREASURY_ADDR);
-        if (hit?.block_time) lastActivityEl.textContent = fmtTime(hit.block_time);
+        const data = await fetchTrades({ limit: 50, maker: TREASURY_ADDR });
+        if (data && data.length && data[0]?.block_time) {
+          lastActivityEl.textContent = fmtTime(data[0].block_time);
+        }
       } catch (e) {
         // leave as-is
       }
@@ -735,16 +730,10 @@
       if (!BNKR_ADDR) return;
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
       try {
-        const { data, error } = await client
-          .from("trades")
-          .select("clanker_amount,status,maker")
-          .gte("block_time", since)
-          .limit(500);
-        if (error) throw error;
+        const data = await fetchTrades({ since, limit: 500, maker: BNKR_ADDR });
         let inflow = 0;
         let pending = 0;
         (data || []).forEach((r) => {
-          if ((r.maker || "").toLowerCase() !== BNKR_ADDR) return;
           const amt = Number(r.clanker_amount || 0);
           if ((r.status || "").toLowerCase() === "confirmed") inflow += amt;
           else pending += amt;
@@ -758,23 +747,27 @@
     }
 
     function subscribeTrades() {
-      client
-        .channel("trades-realtime")
-        .on(
-          "postgres_changes",
-          { event: "INSERT", schema: "public", table: "trades" },
-          (payload) => {
-            const r = payload?.new || {};
-            const makerLower = (r.maker || "").toLowerCase();
-            if (makerLower !== TREASURY_ADDR && makerLower !== BUYBACK_ADDR) return;
-            prependTradeRow(r);
-            loadTreasuryBalances();
-            loadClankerPrice();
-            loadBnkrPrice();
-            loadTreasuryLastTrade();
-          }
-        )
-        .subscribe();
+      try {
+        client
+          .channel("trades-realtime")
+          .on(
+            "postgres_changes",
+            { event: "INSERT", schema: "public", table: "trades" },
+            (payload) => {
+              const r = payload?.new || {};
+              const makerLower = (r.maker || "").toLowerCase();
+              if (makerLower !== TREASURY_ADDR && makerLower !== BUYBACK_ADDR) return;
+              prependTradeRow(r);
+              loadTreasuryBalances();
+              loadClankerPrice();
+              loadBnkrPrice();
+              loadTreasuryLastTrade();
+            }
+          )
+          .subscribe();
+      } catch (e) {
+        console.warn("Realtime subscribe failed", e);
+      }
     }
 
     loadTrades();
