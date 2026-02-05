@@ -170,7 +170,13 @@
     const supabaseUrl = "__SUPABASE_URL__";
     const supabaseKey = "__SUPABASE_KEY__";
     const API_BASE = "__API_BASE_URL__";
+    const REALTIME_ENABLED_RAW = "__REALTIME_ENABLED__";
     const apiBase = (API_BASE || "").replace(/\/+$/, "");
+    const realtimeEnabled = (() => {
+      const raw = String(REALTIME_ENABLED_RAW || "").trim().toLowerCase();
+      if (!raw || raw === "__realtime_enabled__") return false;
+      return ["1", "true", "yes", "on"].includes(raw);
+    })();
     const BUYBACK_ADDR = "__BUYBACK_ADDRESS__".toLowerCase();
     const TREASURY_ADDR = "__TREASURY_ADDRESS__".toLowerCase();
     const BNKR_ADDR = "__BNKR_ADDRESS__".toLowerCase();
@@ -784,6 +790,10 @@
     }
 
     function subscribeTrades() {
+      if (!realtimeEnabled) {
+        console.warn("Realtime disabled");
+        return;
+      }
       try {
         client
           .channel("trades-realtime")
