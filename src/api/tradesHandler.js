@@ -3,8 +3,7 @@
 import { createLogger } from "../lib/logger.js";
 import { normalizeError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
-import { strictApi } from "../config/env.js";
-import { createSupabaseAdminClient, createSupabaseAnonClient } from "../config/supabase.js";
+import { strictApi, config } from "../config/env.js";
 import { toInt, toLowerAddress } from "../lib/validate.js";
 
 const logger = createLogger("api:trades");
@@ -54,23 +53,41 @@ export default async function tradesHandler(req, res) {
     const pool = query?.pool ? String(query.pool).toLowerCase() : "";
     const status = query?.status ? String(query.status).toLowerCase() : "";
 
-    const supabase = createSupabaseAdminClient() || createSupabaseAnonClient();
-    if (!supabase) {
+    const supabaseUrl = config.supabase.url;
+    const supabaseKey = config.supabase.serviceRoleKey || config.supabase.anonKey;
+    if (!supabaseUrl || !supabaseKey) {
       return sendError(500, "Supabase env missing");
     }
-    let query = supabase
-      .from("trades")
-      .select("tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain")
-      .order("block_number", { ascending: false })
-      .limit(limit);
 
-    if (since) query = query.gte("block_time", since);
-    if (maker) query = query.eq("maker", maker);
-    if (pool) query = query.ilike("pool_address", `%${pool}%`);
-    if (status) query = query.eq("status", status);
+    const params = new URLSearchParams();
+    params.set(
+      "select",
+      "tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain"
+    );
+    params.set("order", "block_number.desc");
+    params.set("limit", String(limit));
+    if (since) params.set("block_time", `gte.${since}`);
+    if (maker) params.set("maker", `eq.${maker}`);
+    if (pool) params.set("pool_address", `ilike.*${pool}*`);
+    if (status) params.set("status", `eq.${status}`);
 
-    const { data, error } = await query;
-    if (error) throw error;
+    const url = `${supabaseUrl.replace(/\\/+$/, "")}/rest/v1/trades?${params.toString()}`;
+    const apiRes = await fetch(url, {
+      headers: {
+        apikey: supabaseKey,
+        Authorization: `Bearer ${supabaseKey}`
+      }
+    });
+    const text = await apiRes.text();
+    if (!apiRes.ok) {
+      throw new Error(`supabase http ${apiRes.status}: ${text || "no body"}`);
+    }
+    let data = [];
+    try {
+      data = text ? JSON.parse(text) : [];
+    } catch (_) {
+      data = [];
+    }
 
     return res.status(200).json({ data: data || [], count: (data || []).length });
   } catch (err) {
