@@ -228,10 +228,36 @@
         qs.set(key, String(value));
       });
       const url = qs.toString() ? `/api/trades?${qs.toString()}` : "/api/trades";
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`trades api error (${res.status})`);
-      const json = await res.json();
-      return Array.isArray(json?.data) ? json.data : [];
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          const text = await res.text();
+          console.warn("trades api error", res.status, text.slice(0, 200));
+          throw new Error(`trades api error (${res.status})`);
+        }
+        const json = await res.json();
+        return Array.isArray(json?.data) ? json.data : [];
+      } catch (apiErr) {
+        try {
+          let query = client
+            .from("trades")
+            .select("tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain")
+            .order("block_number", { ascending: false })
+            .limit(params.limit || PAGE_SIZE);
+
+          if (params.pool) query = query.ilike("pool_address", `%${String(params.pool).toLowerCase()}%`);
+          if (params.maker) query = query.eq("maker", String(params.maker).toLowerCase());
+          if (params.since) query = query.gte("block_time", params.since);
+          if (params.status) query = query.eq("status", String(params.status).toLowerCase());
+
+          const { data, error } = await query;
+          if (error) throw error;
+          return data || [];
+        } catch (fallbackErr) {
+          console.warn("trades fallback failed", fallbackErr);
+          throw apiErr;
+        }
+      }
     }
 
     function fmtTime(ts) {

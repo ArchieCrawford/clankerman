@@ -26,6 +26,20 @@ const formatBalance = (raw, decimals) => {
   return fracStr ? `${whole}.${fracStr}` : whole.toString();
 };
 
+const getQuery = (req) => {
+  if (req?.query && Object.keys(req.query).length) return req.query;
+  try {
+    const url = new URL(req.url || "", "http://localhost");
+    const out = {};
+    url.searchParams.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  } catch (_) {
+    return {};
+  }
+};
+
 /**
  * Vercel handler for balances.
  * @param {import('http').IncomingMessage & { query?: any, headers?: any }} req
@@ -41,7 +55,8 @@ export default async function balancesHandler(req, res) {
   };
 
   try {
-    const address = (req.query?.address || config.tokens.treasury || "").trim();
+    const query = getQuery(req);
+    const address = (query?.address || config.tokens.treasury || "").trim();
     if (!address) return sendError(400, "address is required");
     if (!isAddress(address)) return sendError(400, "invalid address");
 
@@ -57,7 +72,7 @@ export default async function balancesHandler(req, res) {
       { symbol: "USDC", address: config.tokens.usdc, decimals: 6 }
     ];
 
-    const filterSymbols = (req.query?.symbols || "")
+    const filterSymbols = (query?.symbols || "")
       .split(",")
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);

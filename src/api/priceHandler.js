@@ -11,6 +11,20 @@ import { isAddress } from "../lib/validate.js";
 
 const logger = createLogger("api:price");
 
+const getQuery = (req) => {
+  if (req?.query && Object.keys(req.query).length) return req.query;
+  try {
+    const url = new URL(req.url || "", "http://localhost");
+    const out = {};
+    url.searchParams.forEach((value, key) => {
+      out[key] = value;
+    });
+    return out;
+  } catch (_) {
+    return {};
+  }
+};
+
 const V3_POOL_ABI = [
   "function slot0() view returns (uint160,int24,uint16,uint16,uint16,uint8,bool)",
   "function token0() view returns (address)",
@@ -44,9 +58,10 @@ export default async function priceHandler(req, res) {
     const clankerToken = config.tokens.clanker;
     const wethToken = config.tokens.weth;
     const usdcToken = config.tokens.usdc;
-    const range = (req.query?.range || "24h").toLowerCase();
+    const query = getQuery(req);
+    const range = (query?.range || "24h").toLowerCase();
 
-    const requestedRaw = (req.query?.token || req.query?.address || "").toLowerCase();
+    const requestedRaw = (query?.token || query?.address || "").toLowerCase();
     const requested = requestedRaw.trim();
     const targetAddr = requested === "bnkr"
       ? config.tokens.bnkr
@@ -64,6 +79,10 @@ export default async function priceHandler(req, res) {
     }
     if (requested && !["clanker", "weth", "usdc", "bnkr"].includes(requested) && !isAddress(targetAddr)) {
       return sendError(400, "unsupported token");
+    }
+
+    if (requested === "usdc") {
+      return res.json({ price: 1, history: null, source: "static" });
     }
 
     try {
