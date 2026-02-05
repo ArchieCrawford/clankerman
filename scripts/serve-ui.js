@@ -19,6 +19,7 @@ const log = (...args) => console.log(new Date().toISOString(), "[ui]", ...args);
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+const API_BASE_URL = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "";
 const BUYBACK_ADDRESS = process.env.BUYBACK_ADDRESS || "";
 const TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || "";
 const BNKR_ADDRESS = process.env.BNKR_ADDRESS || "";
@@ -40,6 +41,7 @@ const template = fs.readFileSync(WEB_INDEX, "utf8");
 const html = template
   .replace(/__SUPABASE_URL__/g, SUPABASE_URL)
   .replace(/__SUPABASE_KEY__/g, SUPABASE_KEY)
+  .replace(/__API_BASE_URL__/g, API_BASE_URL)
   .replace(/__BUYBACK_ADDRESS__/g, BUYBACK_ADDRESS)
   .replace(/__TREASURY_ADDRESS__/g, TREASURY_ADDRESS)
   .replace(/__BNKR_ADDRESS__/g, BNKR_ADDRESS)

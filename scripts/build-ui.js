@@ -14,6 +14,7 @@ const DIST_STYLE = path.join(DIST_DIR, "styles");
 const env = {
   SUPABASE_URL: process.env.SUPABASE_URL,
   SUPABASE_KEY: process.env.SUPABASE_ANON_KEY, // Never inject Service Role into HTML
+  API_BASE_URL: process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_BASE_URL || "",
   BUYBACK_ADDRESS: process.env.BUYBACK_ADDRESS || "0x1195B555885C313614AF705D97db22881D2fbABD",
   TREASURY_ADDRESS: process.env.TREASURY_ADDRESS || "0x8D4aB2A3E89EadfDC729204adF863A0Bfc7746F6",
   BNKR_ADDRESS: process.env.BNKR_ADDRESS || "0x22af33fe49fd1fa80c7149773dde5890d3c76f3b",

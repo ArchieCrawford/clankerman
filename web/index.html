@@ -169,6 +169,8 @@
 
     const supabaseUrl = "__SUPABASE_URL__";
     const supabaseKey = "__SUPABASE_KEY__";
+    const API_BASE = "__API_BASE_URL__";
+    const apiBase = (API_BASE || "").replace(/\/+$/, "");
     const BUYBACK_ADDR = "__BUYBACK_ADDRESS__".toLowerCase();
     const TREASURY_ADDR = "__TREASURY_ADDRESS__".toLowerCase();
     const BNKR_ADDR = "__BNKR_ADDRESS__".toLowerCase();
@@ -221,6 +223,15 @@
     let latestPrices = { clanker: null, weth: null, usdc: 1 };
     let latestBalances = { clanker: null, weth: null, usdc: null };
 
+    const apiFetch = (path, options) => {
+      const target = /^https?:\/\//i.test(path)
+        ? path
+        : apiBase
+        ? `${apiBase}${path.startsWith("/") ? "" : "/"}${path}`
+        : path;
+      return fetch(target, options);
+    };
+
     async function fetchTrades(params = {}) {
       const qs = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -229,7 +240,7 @@
       });
       const url = qs.toString() ? `/api/trades?${qs.toString()}` : "/api/trades";
       try {
-        const res = await fetch(url);
+        const res = await apiFetch(url);
         if (!res.ok) {
           const text = await res.text();
           console.warn("trades api error", res.status, text.slice(0, 200));
@@ -474,7 +485,7 @@
     async function loadTreasuryBalances() {
       if (!TREASURY_ADDR) return;
       try {
-        const res = await fetch(`/api/balances?address=${TREASURY_ADDR}`);
+        const res = await apiFetch(`/api/balances?address=${TREASURY_ADDR}`);
         if (!res.ok) throw new Error("balances api error");
         const json = await res.json();
         const tokens = json.tokens || [];
@@ -525,7 +536,7 @@
     async function loadClankerPrice() {
       if (!clankerPriceEl) return;
       try {
-        const res = await fetch(`/api/price?range=${priceRange}`);
+        const res = await apiFetch(`/api/price?range=${priceRange}`);
         if (!res.ok) throw new Error("price api error");
         const { price, history, source } = await res.json();
         const n = Number(price);
@@ -566,7 +577,7 @@
         return;
       }
       try {
-        const res = await fetch(`/api/price?token=bnkr&range=${priceRange}`);
+        const res = await apiFetch(`/api/price?token=bnkr&range=${priceRange}`);
         if (!res.ok) throw new Error("bnkr price api error");
         const { price, history, source } = await res.json();
         const n = Number(price);
@@ -594,7 +605,7 @@
 
     async function loadRefPrice(token) {
       try {
-        const res = await fetch(`/api/price?token=${token}`);
+        const res = await apiFetch(`/api/price?token=${token}`);
         if (!res.ok) throw new Error("ref price api error");
         const { price } = await res.json();
         const n = Number(price);
