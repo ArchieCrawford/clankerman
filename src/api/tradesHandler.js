@@ -4,7 +4,7 @@ import { createLogger } from "../lib/logger.js";
 import { normalizeError } from "../lib/errors.js";
 import { getRequestId } from "../lib/http.js";
 import { strictApi } from "../config/env.js";
-import { getSupabaseAdminClient } from "../services/supabase/client.js";
+import { createSupabaseAdminClient, createSupabaseAnonClient } from "../config/supabase.js";
 import { toInt, toLowerAddress } from "../lib/validate.js";
 
 const logger = createLogger("api:trades");
@@ -30,7 +30,7 @@ export default async function tradesHandler(req, res) {
   }
 
   try {
-    strictApi({ requireSupabase: true });
+    strictApi({ requireSupabase: false });
 
     const limit = clamp(toInt(req.query?.limit || "200", 200), 1, 1000);
     const since = req.query?.since ? new Date(req.query.since).toISOString() : null;
@@ -38,7 +38,10 @@ export default async function tradesHandler(req, res) {
     const pool = req.query?.pool ? String(req.query.pool).toLowerCase() : "";
     const status = req.query?.status ? String(req.query.status).toLowerCase() : "";
 
-    const supabase = getSupabaseAdminClient();
+    const supabase = createSupabaseAdminClient() || createSupabaseAnonClient();
+    if (!supabase) {
+      return sendError(500, "Supabase env missing");
+    }
     let query = supabase
       .from("trades")
       .select("tx_hash,block_number,block_time,pool_address,side,clanker_amount,quote_symbol,quote_amount,maker,status,chain")
