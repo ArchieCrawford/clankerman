@@ -30,8 +30,26 @@ export function createAlchemySocketManager(options) {
 
   let provider = null;
   let connecting = false;
+  let reconnecting = false;
 
   const getProvider = () => provider;
+
+  const queueReconnect = async (reason) => {
+    if (reconnecting) return;
+    reconnecting = true;
+    try {
+      if (reason) logger.warn(reason);
+      provider?.destroy?.();
+    } catch (_) {}
+    provider = null;
+    await sleep(reconnectDelayMs);
+    reconnecting = false;
+    connecting = false;
+    connect().catch((err) => {
+      const normalized = normalizeError(err);
+      logger.error("reconnect error", normalized.message);
+    });
+  };
 
   const connect = async () => {
     if (connecting) return;
@@ -44,18 +62,14 @@ export function createAlchemySocketManager(options) {
         logger.error("provider error", normalized.message);
       });
 
+      provider.websocket?.on?.("error", (err) => {
+        const normalized = normalizeError(err);
+        logger.error("websocket error", normalized.message);
+        queueReconnect(`websocket error; attempting reconnect`);
+      });
+
       provider.websocket?.on?.("close", async (code) => {
-        logger.error(`websocket closed (${code ?? "unknown"}); attempting reconnect`);
-        try {
-          provider?.destroy?.();
-        } catch (_) {}
-        provider = null;
-        await sleep(reconnectDelayMs);
-        connecting = false;
-        connect().catch((err) => {
-          const normalized = normalizeError(err);
-          logger.error("reconnect error", normalized.message);
-        });
+        await queueReconnect(`websocket closed (${code ?? "unknown"}); attempting reconnect`);
       });
 
       if (onReady) {
