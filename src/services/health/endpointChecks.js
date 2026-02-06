@@ -55,7 +55,8 @@ export async function runEndpointHealthChecks(options) {
     const url = buildUrl(baseUrl, "/api/balances");
     const { ok, status, json } = await fetchJson(url);
     if (!ok) throw new AppError(`http ${status}`, { status, code: "HEALTHCHECK" });
-    if (!json?.native?.balanceRaw) {
+    const raw = json?.native?.balanceRaw ?? json?.native?.balance ?? null;
+    if (raw === null || raw === undefined) {
       return { ok: false, status, note: "missing native balance" };
     }
     return { ok: true, status, note: "native balance ok" };
