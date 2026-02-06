@@ -37,7 +37,8 @@ let html = fs.readFileSync(SRC, "utf8");
 // Loop through env object and replace __KEY__ with value
 Object.keys(env).forEach(key => {
   const placeholder = new RegExp(`__${key}__`, 'g');
-  html = html.replace(placeholder, env[key]);
+  const value = env[key] != null ? String(env[key]) : "";
+  html = html.replace(placeholder, value);
 });
 
 fs.writeFileSync(DIST, html, "utf8");
