@@ -35,9 +35,12 @@ fs.mkdirSync(DIST_DIR, { recursive: true });
 let html = fs.readFileSync(SRC, "utf8");
 
 // Loop through env object and replace __KEY__ with value
+// Note: Critical env vars (SUPABASE_URL, SUPABASE_KEY) are validated above before replacement
 Object.keys(env).forEach(key => {
   const placeholder = new RegExp(`__${key}__`, 'g');
-  html = html.replace(placeholder, env[key]);
+  // Convert null/undefined to empty string to prevent "undefined" string in output
+  const value = env[key] != null ? String(env[key]) : "";
+  html = html.replace(placeholder, value);
 });
 
 fs.writeFileSync(DIST, html, "utf8");
