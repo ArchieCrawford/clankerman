@@ -71,7 +71,8 @@ export default async function tradesHandler(req, res) {
     if (pool) params.set("pool_address", `ilike.*${pool}*`);
     if (status) params.set("status", `eq.${status}`);
 
-    const url = `${supabaseUrl.replace(/\\/+$/, "")}/rest/v1/trades?${params.toString()}`;
+      const baseUrl = String(supabaseUrl).replace(/\/+$/, "");
+      const url = `${baseUrl}/rest/v1/trades?${params.toString()}`;
     const apiRes = await fetch(url, {
       headers: {
         apikey: supabaseKey,
