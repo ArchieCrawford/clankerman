@@ -1,7 +1,0 @@
-{
-  "framework": null,
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build:ui",
-  "devCommand": "node scripts/serve-ui.js"
-}
