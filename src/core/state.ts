@@ -6,7 +6,7 @@ import { Fx } from "../math/fixed.js";
 import { hashInit, hashInt } from "../math/hash.js";
 import { PrngState, prngSeed } from "../math/prng.js";
 import { GameMap, createMap } from "./map.js";
-import { ScheduledCommand } from "./commands.js";
+import { Command, CommandKind, ScheduledCommand } from "./commands.js";
 
 export const TICKS_PER_SECOND = 16;
 export const COMMAND_LATENCY_TICKS = 2;
@@ -53,6 +53,12 @@ export interface Unit {
   /** Cached per-waypoint velocity (Q16.16), recomputed when waypoint changes. */
   velX: Fx;
   velY: Fx;
+  /**
+   * Ticks to wait before the next pathfinding attempt. Set after a failed
+   * findPath so an unreachable goal can't trigger a full A* flood every tick
+   * (VERIFY [009] finding 1). Sim state: hashed.
+   */
+  repathWait: number;
   /** Combat: current target unit id, -1 = none. Cooldown in ticks. */
   targetId: number;
   cooldown: number;
@@ -126,6 +132,42 @@ export function getNode(state: GameState, id: number): ResourceNode | undefined 
   return undefined;
 }
 
+/** Canonical hash of one command payload, exhaustive over every field. */
+function hashCommand(cmd: Command): number {
+  let h = hashInit();
+  h = hashInt(h, cmd.kind);
+  switch (cmd.kind) {
+    case CommandKind.Move:
+    case CommandKind.AttackMove:
+      h = hashInt(h, cmd.x);
+      h = hashInt(h, cmd.y);
+      for (const id of cmd.unitIds) h = hashInt(h, id);
+      break;
+    case CommandKind.Attack:
+      h = hashInt(h, cmd.targetId);
+      for (const id of cmd.unitIds) h = hashInt(h, id);
+      break;
+    case CommandKind.Stop:
+      for (const id of cmd.unitIds) h = hashInt(h, id);
+      break;
+    case CommandKind.Harvest:
+      h = hashInt(h, cmd.nodeId);
+      for (const id of cmd.unitIds) h = hashInt(h, id);
+      break;
+    case CommandKind.Train:
+      h = hashInt(h, cmd.buildingId);
+      h = hashInt(h, cmd.unitTypeId);
+      break;
+    case CommandKind.BuildStructure:
+      h = hashInt(h, cmd.workerId);
+      h = hashInt(h, cmd.unitTypeId);
+      h = hashInt(h, cmd.x);
+      h = hashInt(h, cmd.y);
+      break;
+  }
+  return h;
+}
+
 /**
  * FNV-1a over the canonical field order — the lockstep desync detector.
  * Every field that affects simulation must be included. (LOG [003])
@@ -158,10 +200,34 @@ export function hashState(state: GameState): number {
     h = hashInt(h, u.carryAmount);
     h = hashInt(h, u.trainProgress);
     h = hashInt(h, u.constructTicks);
+    // Intent/order state (VERIFY [009] finding 2): a divergence here can stay
+    // positionally invisible for hundreds of ticks (e.g. trainQueue [A] vs
+    // [A,B]), so the detector must see it directly.
+    h = hashInt(h, u.goalX);
+    h = hashInt(h, u.goalY);
+    h = hashInt(h, u.harvestNodeId);
+    h = hashInt(h, u.carryKind);
+    h = hashInt(h, u.repathWait);
+    h = hashInt(h, u.pathIndex);
+    h = hashInt(h, u.path === null ? -1 : u.path.length);
+    h = hashInt(h, u.trainQueue.length);
+    for (const q of u.trainQueue) h = hashInt(h, q);
   }
   for (const n of state.nodes) {
     h = hashInt(h, n.id);
+    h = hashInt(h, n.x);
+    h = hashInt(h, n.y);
     h = hashInt(h, n.amount);
   }
+  // The undelivered command queue: a dropped or injected command is a desync
+  // the moment it's scheduled, not when it executes (VERIFY [009] finding 2).
+  h = hashInt(h, state.pending.length);
+  for (const sc of state.pending) {
+    h = hashInt(h, sc.execTick);
+    h = hashInt(h, sc.playerId);
+    h = hashInt(h, sc.seq);
+    h = hashInt(h, hashCommand(sc.cmd));
+  }
+  for (const s of state.cmdSeq) h = hashInt(h, s);
   return h;
 }

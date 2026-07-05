@@ -11,8 +11,14 @@ import { cellCenterX, cellCenterY, isWalkableCell, worldToCell, worldToCellX, wo
 import { unitType } from "../../data/units.js";
 import { PathScratch, findPath, nearestWalkable } from "../../path/astar.js";
 import { SpatialGrid, gridQueryCircle, gridRebuild } from "../../spatial/grid.js";
+import { prngRange } from "../../math/prng.js";
 
-const ARRIVE_EPS_SQ = Math.floor((FX_ONE / 4) ** 2 / FX_ONE) | 0; // (0.25 wu)²
+const ARRIVE_EPS_SQ = FX_ONE >> 4; // (0.25 wu)² = 0.0625 in distSq's Q16.16 domain
+
+/** Backoff after a failed path attempt (VERIFY [009] finding 1): without it an
+ * unreachable goal re-floods A* every tick — confirmed at 337 ms/tick with 100
+ * units vs the 62.5 ms budget. */
+const REPATH_BACKOFF_TICKS = 32;
 
 function travels(u: Unit): boolean {
   return (
@@ -34,11 +40,19 @@ export function runMovement(state: GameState, scratch: PathScratch): void {
         arrive(u);
         continue;
       }
+      if (u.repathWait > 0) {
+        u.repathWait--;
+        continue;
+      }
       const start = worldToCell(state.map, u.x, u.y);
       const goal = worldToCell(state.map, u.goalX, u.goalY);
       const p = findPath(state.map, start, goal, scratch);
       if (p === null) {
-        arrive(u); // unreachable: give up rather than spin (LOG [005])
+        // Unreachable. Plain Move gives up; behaviors with a live intent
+        // (Attacking/AttackMoving/Harvesting) keep the goal but back off so
+        // they retry only every REPATH_BACKOFF_TICKS.
+        u.repathWait = REPATH_BACKOFF_TICKS;
+        if (u.behavior === UnitBehavior.Moving) arrive(u);
         continue;
       }
       u.path = p;
@@ -147,10 +161,14 @@ export function runSeparation(state: GameState, grid: SpatialGrid, queryBuf: num
     const n = gridQueryCircle(grid, units, a.x, a.y, (ta.radius + fx(2)) | 0, queryBuf);
     for (let k = 0; k < n; k++) {
       const j = queryBuf[k]!;
-      if (j <= i) continue;
+      if (j === i) continue;
       const b = units[j]!;
       if (b.hp <= 0) continue;
       const tb = unitType(b.typeId);
+      // Mobile pairs are deduped by index; buildings never appear as `a`
+      // (skipped above), so a mobile unit must handle a lower-indexed building
+      // itself or the pair is never resolved (VERIFY [009] finding 3).
+      if (j < i && !tb.isBuilding) continue;
       const minDist = (ta.radius + tb.radius) | 0;
       const dSq = distSq(a.x, a.y, b.x, b.y);
       const minDistSq = fxMul(minDist, minDist);
@@ -159,10 +177,13 @@ export function runSeparation(state: GameState, grid: SpatialGrid, queryBuf: num
       let pushX: Fx;
       let pushY: Fx;
       if (d === 0) {
-        // Perfectly stacked: deterministic nudge from ids.
-        const nudge = ((a.id + b.id) & 1) === 0 ? FX_ONE >> 4 : -(FX_ONE >> 4);
-        pushX = nudge;
-        pushY = -nudge | 0;
+        // Perfectly stacked: nudge in a PRNG-chosen direction. The PRNG lives
+        // in GameState, so this is deterministic — and it makes the match seed
+        // a real gameplay input (VERIFY [009] finding 6).
+        const dir = prngRange(state.prng, 4);
+        const mag = FX_ONE >> 4;
+        pushX = dir & 1 ? mag : -mag | 0;
+        pushY = dir & 2 ? mag : -mag | 0;
       } else {
         const overlap = (minDist - d) | 0;
         const half = overlap >> 1;

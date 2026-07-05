@@ -84,6 +84,7 @@ export function runCombat(state: GameState, grid: SpatialGrid, queryBuf: number[
         u.goalX = target.x;
         u.goalY = target.y;
         u.path = null; // movement system repaths next tick
+        u.repathWait = 0;
       }
     }
   }

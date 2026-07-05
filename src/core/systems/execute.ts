@@ -4,6 +4,7 @@
  * unaffordable) are dropped silently and identically on every peer.
  */
 import { spawnUnit } from "../api.js";
+import { unstick } from "./movement.js";
 import { CommandKind } from "../commands.js";
 import { GameState, Unit, UnitBehavior, getNode, getUnit } from "../state.js";
 import { unitType } from "../../data/units.js";
@@ -11,8 +12,17 @@ import { isWalkableCell } from "../map.js";
 import { fxFloor } from "../../math/fixed.js";
 
 export function executeCommands(state: GameState): void {
+  // Scan before allocating: this runs every tick and pending is usually empty
+  // or has nothing due (VERIFY [009] finding 7).
+  let anyDue = false;
+  for (const c of state.pending) {
+    if (c.execTick === state.tick) {
+      anyDue = true;
+      break;
+    }
+  }
+  if (!anyDue) return;
   const due = state.pending.filter((c) => c.execTick === state.tick);
-  if (due.length === 0) return;
   state.pending = state.pending.filter((c) => c.execTick !== state.tick);
   due.sort((a, b) => (a.playerId !== b.playerId ? a.playerId - b.playerId : a.seq - b.seq));
 
@@ -28,6 +38,7 @@ export function executeCommands(state: GameState): void {
           u.goalX = cmd.x;
           u.goalY = cmd.y;
           u.path = null;
+          u.repathWait = 0;
           u.targetId = -1;
           u.harvestNodeId = -1;
         }
@@ -44,6 +55,7 @@ export function executeCommands(state: GameState): void {
           u.goalX = target.x;
           u.goalY = target.y;
           u.path = null;
+          u.repathWait = 0;
           u.harvestNodeId = -1;
         }
         break;
@@ -54,6 +66,7 @@ export function executeCommands(state: GameState): void {
           if (!u) continue;
           u.behavior = UnitBehavior.Idle;
           u.path = null;
+          u.repathWait = 0;
           u.targetId = -1;
           u.harvestNodeId = -1;
           u.velX = 0;
@@ -71,6 +84,7 @@ export function executeCommands(state: GameState): void {
           u.harvestNodeId = cmd.nodeId;
           u.targetId = -1;
           u.path = null;
+          u.repathWait = 0;
           u.cooldown = 0;
         }
         break;
@@ -115,6 +129,14 @@ export function executeCommands(state: GameState): void {
         p.scrap -= bt.costScrap;
         p.aether -= bt.costAether;
         spawnUnit(state, sc.playerId, cmd.unitTypeId, cmd.x, cmd.y, true);
+        // Anyone standing on the now-blocked footprint gets re-anchored to the
+        // nearest walkable cell — separation alone can't free a unit whose
+        // every small push lands on blocked cells (VERIFY [009] findings 3/9).
+        for (const bystander of state.units) {
+          if (bystander.hp > 0 && !unitType(bystander.typeId).isBuilding) {
+            unstick(state, bystander);
+          }
+        }
         break;
       }
     }

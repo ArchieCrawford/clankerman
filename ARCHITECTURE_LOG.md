@@ -136,5 +136,42 @@ in comments* — reworded rather than weakening the lint.
 - SimContext (path scratch, spatial grid, query buffers) is derived data —
   proven by the scratch-reuse determinism test; never hash or serialize it.
 
+## [009] 2026-07-04 VERIFY — First fresh-context verification round (Phase 4)
+
+A fresh-context verifier sub-agent audited the core for strict determinism and
+memory efficiency. It validated the foundations hard: fxMul/fxMulSat/fxSqrt
+checked against a BigInt reference over 500k random int32 pairs plus edge cases
+(including -0x80000000) — exact, zero failures; the grid's 2^53 overflow
+argument holds; A* tie-breaking is a total order; the id-sorted units invariant
+is preserved. It also confirmed real defects (all fixed same round):
+
+1. **Repath storm (confirmed, 337 ms/tick)**: unreachable goals re-flooded A*
+   every tick for every affected unit — player-triggerable by walling a target.
+   → `Unit.repathWait` backoff (32 ticks) after a failed findPath; cleared on
+   any new order/goal. Regression test pins ~7 ms/tick for the same scenario.
+2. **Weak desync detector**: hashState omitted trainQueue, goals, path shape,
+   harvest/carry intent, the pending command queue, and cmdSeq — divergences
+   could hide for hundreds of ticks. → all hashed now, incl. per-command payload
+   hashing.
+3. **Separation order bug (confirmed)**: a mobile unit never pushed out of a
+   LOWER-indexed building (`j <= i` dedup skipped the pair; buildings are never
+   `a`). → dedup applies to mobile pairs only; plus `unstick()` is now invoked
+   for bystanders when a building footprint is placed.
+4. **Unsanitized command payloads (confirmed)**: a fractional Move coordinate
+   ended up verbatim in unit position state — non-int32 values in "int32-only"
+   state. → `sanitizeCommand` at the issueCommand boundary: `|0` coercion, map
+   clamping, type-id validation (bad ids dropped, not thrown).
+5. **Float-ban lint too narrow**: switched to an allowlist model — only
+   Math.floor/imul/abs/min/max/round permitted, `**`/Date/performance./
+   parseFloat/toFixed banned, scanning code with comments stripped.
+6. **PRNG was dead code**: now consumed by the stacked-unit separation nudge
+   (direction drawn from the match seed's stream). Seeds remain a minor
+   gameplay input until more randomness (e.g. spawn jitter) lands — noted.
+7. **Per-tick filter() allocation** in executeCommands → scan-before-allocate.
+
+Verifier verdict pre-fix: "fit for lockstep on the determinism axis, not fit
+to build UI on yet" (findings 1/2/4). All three blockers are now fixed and
+regression-tested (test/verify-fixes.test.ts); 65 tests green.
+
 ---
 <!-- Append new entries below. Never edit or delete existing entries. -->

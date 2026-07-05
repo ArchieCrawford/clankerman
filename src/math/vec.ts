@@ -5,7 +5,12 @@
  */
 import { Fx, FX_ONE, fxAbs, fxDiv, fxMax, fxMul, fxMulSat, fxSqrt } from "./fixed.js";
 
-/** Squared distance, saturating at FX_MAX. Prefer this for comparisons. */
+/**
+ * Squared distance, saturating at FX_MAX (reached at ~181 wu of separation).
+ * Prefer this for range checks; when used for *ordering* (nearest-of), ties
+ * among saturated far-away candidates fall back to iteration order — fine for
+ * gameplay, but don't use it to sort precisely beyond ~181 wu.
+ */
 export function distSq(ax: Fx, ay: Fx, bx: Fx, by: Fx): Fx {
   const dx = (bx - ax) | 0;
   const dy = (by - ay) | 0;
@@ -15,7 +20,11 @@ export function distSq(ax: Fx, ay: Fx, bx: Fx, by: Fx): Fx {
   return sum > 0x7fffffff ? 0x7fffffff : sum | 0;
 }
 
-/** True distance. One fxSqrt — use only when the actual magnitude is needed. */
+/**
+ * True distance. One fxSqrt — use only when the actual magnitude is needed.
+ * Precondition: separations must fit the map model (≤ 256 wu per axis,
+ * LOG [005]); beyond ~32767 wu the int32 delta itself would wrap.
+ */
 export function dist(ax: Fx, ay: Fx, bx: Fx, by: Fx): Fx {
   // Chebyshev/Manhattan-safe path: for very large separations dx²+dy² would
   // saturate, so fall back to a scaled computation.

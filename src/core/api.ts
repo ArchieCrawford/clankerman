@@ -3,26 +3,66 @@
  * uses to set up and drive a game. Commands go through the latency queue
  * (LOG [004]); spawn helpers are for match setup and internal systems only.
  */
-import { Fx, fxFloor } from "../math/fixed.js";
+import { Fx, fx, fxClamp, fxFloor } from "../math/fixed.js";
 import { setBlocked } from "./map.js";
-import { Command, ScheduledCommand } from "./commands.js";
+import { Command, CommandKind, ScheduledCommand } from "./commands.js";
 import {
   COMMAND_LATENCY_TICKS, GameState, ResourceKind, ResourceNode, Unit, UnitBehavior,
 } from "./state.js";
-import { unitType, unitTypeByKey } from "../data/units.js";
+import { UNIT_TYPES, unitType, unitTypeByKey } from "../data/units.js";
 
-/** Queue a command for execution at tick + COMMAND_LATENCY_TICKS. */
+/**
+ * Queue a command for execution at tick + COMMAND_LATENCY_TICKS.
+ *
+ * This is the network boundary (LOG [004]): payloads are sanitized here so a
+ * malformed or hostile command can never inject non-int32 values into sim
+ * state or crash the sim with an unknown type id (VERIFY [009] finding 4).
+ * In multiplayer, commands received from peers must pass through the same
+ * sanitizer before scheduling.
+ */
 export function issueCommand(state: GameState, playerId: number, cmd: Command): void {
   const seq = state.cmdSeq[playerId];
   if (seq === undefined) throw new Error(`unknown player ${playerId}`);
+  const clean = sanitizeCommand(state, cmd);
+  if (clean === null) return; // structurally invalid: dropped identically on every peer
   state.cmdSeq[playerId] = seq + 1;
   const sc: ScheduledCommand = {
     execTick: state.tick + COMMAND_LATENCY_TICKS,
     playerId,
     seq,
-    cmd,
+    cmd: clean,
   };
   state.pending.push(sc);
+}
+
+/** Coerce every payload field to int32 and clamp coordinates onto the map. */
+export function sanitizeCommand(state: GameState, cmd: Command): Command | null {
+  const clampX = (v: number): Fx => fxClamp(v | 0, 0, (fx(state.map.width) - 1) | 0);
+  const clampY = (v: number): Fx => fxClamp(v | 0, 0, (fx(state.map.height) - 1) | 0);
+  const ids = (raw: number[]): number[] => raw.map((v) => v | 0);
+  switch (cmd.kind) {
+    case CommandKind.Move:
+    case CommandKind.AttackMove:
+      return { kind: cmd.kind, unitIds: ids(cmd.unitIds), x: clampX(cmd.x), y: clampY(cmd.y) };
+    case CommandKind.Attack:
+      return { kind: cmd.kind, unitIds: ids(cmd.unitIds), targetId: cmd.targetId | 0 };
+    case CommandKind.Stop:
+      return { kind: cmd.kind, unitIds: ids(cmd.unitIds) };
+    case CommandKind.Harvest:
+      return { kind: cmd.kind, unitIds: ids(cmd.unitIds), nodeId: cmd.nodeId | 0 };
+    case CommandKind.Train: {
+      const typeId = cmd.unitTypeId | 0;
+      if (typeId < 0 || typeId >= UNIT_TYPES.length) return null;
+      return { kind: cmd.kind, buildingId: cmd.buildingId | 0, unitTypeId: typeId };
+    }
+    case CommandKind.BuildStructure: {
+      const typeId = cmd.unitTypeId | 0;
+      if (typeId < 0 || typeId >= UNIT_TYPES.length) return null;
+      return { kind: cmd.kind, workerId: cmd.workerId | 0, unitTypeId: typeId, x: clampX(cmd.x), y: clampY(cmd.y) };
+    }
+    default:
+      return null; // unknown kind (corrupt packet)
+  }
 }
 
 /**
@@ -58,6 +98,7 @@ export function spawnUnit(
     pathIndex: 0,
     velX: 0,
     velY: 0,
+    repathWait: 0,
     targetId: -1,
     cooldown: 0,
     harvestNodeId: -1,

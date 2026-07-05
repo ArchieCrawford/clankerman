@@ -89,7 +89,9 @@ export function fxSqrt(a: Fx): Fx {
   let n = a * FX_ONE;
   let root = 0;
   // Highest power-of-4 ≤ 2^46 (bit must be a power of 4 for the algorithm).
-  let bit = 2 ** 46;
+  // Written as a literal so the float-ban lint can outlaw `**` outright.
+  let bit = 0x400000000000; // 2^46
+
   while (bit > n) bit /= 4;
   while (bit >= 1) {
     if (n >= root + bit) {

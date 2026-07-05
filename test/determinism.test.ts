@@ -6,10 +6,10 @@
 import { describe, expect, it } from "vitest";
 import { fx } from "../src/math/fixed.js";
 import { CommandKind } from "../src/core/commands.js";
-import { GameState, hashState } from "../src/core/state.js";
-import { issueCommand } from "../src/core/api.js";
+import { GameState, createGameState, hashState } from "../src/core/state.js";
+import { issueCommand, spawnUnit } from "../src/core/api.js";
 import { SimContext, createSimContext, step } from "../src/core/sim.js";
-import { Faction, unitType } from "../src/data/units.js";
+import { Faction, unitType, unitTypeByKey } from "../src/data/units.js";
 import { createSkirmish } from "../src/scenario.js";
 import { prngNext, prngSeed } from "../src/math/prng.js";
 
@@ -78,12 +78,33 @@ describe("lockstep determinism", () => {
     expect(reused).toEqual(ref);
   });
 
-  it("different seeds diverge (PRNG is actually in play)", () => {
-    // Seeds feed the PRNG; nothing in the scripted match consumes randomness
-    // yet unless combat nudges do — so compare full-state hashes including prng.
+  it("different seeds diverge in hash; PRNG consumption is deterministic", () => {
+    // The PRNG's only gameplay consumer today is the stacked-unit separation
+    // nudge (VERIFY [009] finding 6), which this scripted match may or may not
+    // trigger — so this asserts hash divergence (prng lanes are hashed) plus
+    // that a direct PRNG-consuming path is reproducible, not that seeds alter
+    // unit positions in every match.
     const a = playMatch(1, 400);
     const b = playMatch(2, 400);
     expect(a).not.toEqual(b);
+  });
+
+  it("stacked units resolve via the seeded PRNG, reproducibly", () => {
+    const build = (seed: number): number => {
+      const s = createGameState(seed, 32, 32, [Faction.CogDominion, Faction.CogDominion]);
+      const ctx = createSimContext(s);
+      const bolt = unitTypeByKey("cog_boltguard").id;
+      // Two units at the exact same position force the d === 0 nudge path.
+      spawnUnit(s, 0, bolt, fx(10), fx(10));
+      spawnUnit(s, 0, bolt, fx(10), fx(10));
+      for (let i = 0; i < 20; i++) step(s, ctx);
+      const [u1, u2] = s.units;
+      expect(u1!.x !== u2!.x || u1!.y !== u2!.y).toBe(true); // nudge happened
+      return hashState(s);
+    };
+    expect(build(11)).toBe(build(11)); // reproducible
+    // Different seeds may pick different nudge directions; we don't assert
+    // divergence here (4 directions can collide) — reproducibility is the contract.
   });
 
   it("PRNG streams are reproducible and seed-sensitive", () => {

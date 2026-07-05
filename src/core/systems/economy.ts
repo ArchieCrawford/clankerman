@@ -97,7 +97,10 @@ function nearestDepot(state: GameState, u: Unit): Unit | null {
 function setGoal(u: Unit, x: number, y: number): void {
   if (u.goalX !== x || u.goalY !== y || u.path === null) {
     // Movement system computes the path when it sees path === null.
-    if (u.goalX !== x || u.goalY !== y) u.path = null;
+    if (u.goalX !== x || u.goalY !== y) {
+      u.path = null;
+      u.repathWait = 0;
+    }
     u.goalX = x;
     u.goalY = y;
   }
