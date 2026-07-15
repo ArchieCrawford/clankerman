@@ -173,5 +173,53 @@ Verifier verdict pre-fix: "fit for lockstep on the determinism axis, not fit
 to build UI on yet" (findings 1/2/4). All three blockers are now fixed and
 regression-tested (test/verify-fixes.test.ts); 65 tests green.
 
+## [010] 2026-07-15 DECISION — Phase 5/6: PixiJS v8 rendering layer (observer-only)
+
+Renderer: PixiJS v8 (WebGPU with WebGL fallback), top-down 2D. Rules:
+
+- **The renderer is an observer.** All view code lives in `web/`; `src/` is
+  untouched. The renderer reads GameState and issues commands ONLY through
+  `issueCommand` (the sanitized latency queue). It never writes sim fields.
+  The float world exists only render-side: fx → px conversion happens at draw
+  time; interpolation buffers are renderer-owned Maps keyed by unit id.
+- **Fixed timestep + interpolation**: an accumulator drives `step()` at
+  TICK_MS = 62.5; the driver snapshots each unit's (x, y) before every tick.
+  Frames render at `lerp(prevTick, currTick, accumulator / TICK_MS)` so 16 t/s
+  sim looks smooth at any refresh rate. Accumulator is clamped to 8 ticks/frame
+  (backgrounded-tab catchup guard). `requestAnimationFrame` time NEVER reaches the sim —
+  it only decides how many whole ticks to run and the render alpha.
+- **Coordinate spaces**: cell = 32 px at zoom 1. screen ↔ world-px ↔ fx
+  conversions centralized in `web/coords.ts` (pure, unit-tested; fx conversions
+  round + clamp and use `| 0`).
+- Placeholder art: generated textures — metallic squares (Cog Dominion), green
+  circles (Verdant Chorus), translucent pentagons (Hollow Court); player color
+  ring; hp bars; camera = WASD/edge-scroll pan + wheel zoom-to-cursor.
+- Phase 6 input: drag-box selection (world-rect test against unit fx coords),
+  right-click context command: enemy → Attack, resource node → Harvest
+  (workers), ground → Move; A + left-click → AttackMove.
+
+## [011] 2026-07-15 CHANGE — Phase 5/6 landed; verified in a real browser
+
+`web/` implemented per LOG [010]: sim-driver (fixed timestep, 8-tick catchup
+clamp, prev-position snapshots), renderer (texture-cached faction placeholders,
+hp bars, selection rings, ground re-baked only when the structure count
+changes), camera (WASD/edge pan, zoom-to-cursor, map-bounds clamp), input
+(drag-box select with click fallback, context right-click → Attack/Harvest/
+Move, A+click attack-move), scripted Verdant Chorus opponent that plays through
+the same command queue. Vite build; vitest.config.ts split from vite.config.ts
+(the app roots at web/, tests at repo root).
+
+**Verified end-to-end in headless Chromium (SwiftShader)**: app boots, ticks
+track wall clock (~176 ticks in ~11 s at 16 t/s), drag-select captured 4
+workers, right-click move executed through the latency queue, units rendered
+at the destination with separation visible; screenshots captured; no page
+errors (one benign favicon 404). `git diff src/` after the whole phase: zero
+files — the observer constraint held mechanically, not just by intent.
+
+Renderer-side conversions live in web/coords.ts and are unit-tested, incl.
+"pxToFx always yields int32" (the sim-safety property) — 70 tests green.
+Known gaps queued for next phase: production/building UI, fog of war,
+victory/defeat screen beyond the HUD tag, sound.
+
 ---
 <!-- Append new entries below. Never edit or delete existing entries. -->

@@ -44,11 +44,23 @@ Design history, math standards, and verification reports live in
 
 ```bash
 npm install
-npm test          # 59 tests: math, pathfinding, spatial grid, gameplay, determinism, float-ban lint
+npm run dev       # play in the browser (PixiJS v8, WebGPU with WebGL fallback)
+npm test          # 70 tests: math, pathfinding, spatial grid, gameplay, determinism, float-ban lint
 npm run sim       # headless scripted match with per-10s economy/army/hash readout
-npm run sim 1337  # different seed
+npm run sim 1337  # different seed (browser: ?seed=1337)
 npm run typecheck
+npm run build     # production bundle in dist/
 ```
+
+In the browser you command the Cog Dominion against a scripted Verdant Chorus:
+left-drag to select, right-click to move / attack / harvest (context-sensitive),
+`A`+click to attack-move, WASD or screen edges to pan, wheel to zoom.
+
+The renderer (`web/`) is a strict observer of the deterministic core: it runs
+the sim on a fixed 62.5 ms accumulator and interpolates sprite positions
+between the previous and current tick for smooth motion at any refresh rate —
+`requestAnimationFrame` time never reaches game logic, and every order flows
+through the same sanitized command queue a network peer would use.
 
 ## Layout
 
@@ -62,11 +74,14 @@ src/data/      units.ts — the three factions' rosters
 src/scenario.ts    mirrored 2-player skirmish setup
 scripts/run-sim.ts headless demo match
 test/          vitest suites incl. lockstep determinism + float-ban source lint
+web/           PixiJS v8 view layer: sim-driver (fixed timestep + interpolation),
+               renderer (observer), camera, input (selection/commands), scripted AI
 ```
 
 ## Not here yet (by design)
 
-Rendering/UI bindings, networking transport, fog of war, and build-worker
-travel (structures are placed remotely after a footprint check). The sim core
-is the contract; those layers attach to `step()`, `issueCommand()`, and
-`hashState()` without touching the math.
+Networking transport, fog of war, build-worker travel (structures are placed
+remotely after a footprint check), and production/building UI (train orders
+come from the scripted layer for now). The sim core is the contract; those
+layers attach to `step()`, `issueCommand()`, and `hashState()` without
+touching the math.

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Clankerman: Iron Dominion</title>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0e12; }
+      #hud {
+        position: fixed; top: 8px; left: 8px; z-index: 10;
+        font: 13px/1.5 ui-monospace, monospace; color: #cfd8e3;
+        background: rgba(10, 14, 20, 0.72); padding: 8px 12px; border-radius: 6px;
+        pointer-events: none; white-space: pre;
+      }
+      #help {
+        position: fixed; bottom: 8px; left: 8px; z-index: 10;
+        font: 12px/1.5 ui-monospace, monospace; color: #7d8896;
+        background: rgba(10, 14, 20, 0.72); padding: 6px 10px; border-radius: 6px;
+        pointer-events: none;
+      }
+      canvas { display: block; }
+    </style>
+  </head>
+  <body>
+    <div id="hud">loading…</div>
+    <div id="help">left-drag: select · right-click: move / attack / harvest · A+click: attack-move · WASD/edges: pan · wheel: zoom</div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
