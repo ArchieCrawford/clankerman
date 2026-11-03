@@ -3,13 +3,14 @@
  * uses to set up and drive a game. Commands go through the latency queue
  * (LOG [004]); spawn helpers are for match setup and internal systems only.
  */
-import { Fx, fx, fxClamp, fxFloor } from "../math/fixed.js";
+import { Fx, fx, fxClamp } from "../math/fixed.js";
 import { setBlocked } from "./map.js";
 import { Command, CommandKind, ScheduledCommand } from "./commands.js";
 import {
   COMMAND_LATENCY_TICKS, GameState, ResourceKind, ResourceNode, Unit, UnitBehavior,
 } from "./state.js";
 import { UNIT_TYPES, unitType, unitTypeByKey } from "../data/units.js";
+import { footprintOf } from "./placement.js";
 
 /**
  * Queue a command for execution at tick + COMMAND_LATENCY_TICKS.
@@ -60,6 +61,10 @@ export function sanitizeCommand(state: GameState, cmd: Command): Command | null 
       if (typeId < 0 || typeId >= UNIT_TYPES.length) return null;
       return { kind: cmd.kind, workerId: cmd.workerId | 0, unitTypeId: typeId, x: clampX(cmd.x), y: clampY(cmd.y) };
     }
+    case CommandKind.SetRally:
+      return { kind: cmd.kind, buildingId: cmd.buildingId | 0, x: clampX(cmd.x), y: clampY(cmd.y) };
+    case CommandKind.CancelTrain:
+      return { kind: cmd.kind, buildingId: cmd.buildingId | 0, queueIndex: cmd.queueIndex | 0 };
     default:
       return null; // unknown kind (corrupt packet)
   }
@@ -107,6 +112,8 @@ export function spawnUnit(
     trainQueue: [],
     trainProgress: 0,
     constructTicks: underConstruction ? t.buildTimeTicks : 0,
+    rallyX: -1,
+    rallyY: -1,
   };
   state.units.push(u); // ids are monotonic → array stays sorted (getUnit relies on it)
   if (t.powerCost > 0) {
@@ -121,13 +128,9 @@ export function spawnUnit(
 /** Mark the map cells under a building's square footprint blocked/unblocked. */
 export function blockFootprint(state: GameState, u: Unit, blocked: boolean): void {
   const t = unitType(u.typeId);
-  const r = t.radius;
-  const minCx = fxFloor((u.x - r) | 0);
-  const maxCx = fxFloor((u.x + r - 1) | 0);
-  const minCy = fxFloor((u.y - r) | 0);
-  const maxCy = fxFloor((u.y + r - 1) | 0);
-  for (let cy = minCy; cy <= maxCy; cy++) {
-    for (let cx = minCx; cx <= maxCx; cx++) {
+  const fp = footprintOf(u.x, u.y, t.radius);
+  for (let cy = fp.minCy; cy <= fp.maxCy; cy++) {
+    for (let cx = fp.minCx; cx <= fp.maxCx; cx++) {
       if (cx >= 0 && cy >= 0 && cx < state.map.width && cy < state.map.height) {
         setBlocked(state.map, cx, cy, blocked);
       }

@@ -14,6 +14,10 @@ export enum CommandKind {
   Harvest = 4,
   Train = 5,
   BuildStructure = 6,
+  /** Production building: new units walk to (x, y). */
+  SetRally = 7,
+  /** Remove one queued trainee and refund its cost and Power. */
+  CancelTrain = 8,
 }
 
 export interface MoveCommand {
@@ -54,13 +58,29 @@ export interface BuildStructureCommand {
   y: Fx;
 }
 
+export interface SetRallyCommand {
+  kind: CommandKind.SetRally;
+  buildingId: number;
+  x: Fx;
+  y: Fx;
+}
+
+export interface CancelTrainCommand {
+  kind: CommandKind.CancelTrain;
+  buildingId: number;
+  /** Index into the building's trainQueue. Out of range is a no-op. */
+  queueIndex: number;
+}
+
 export type Command =
   | MoveCommand
   | AttackCommand
   | StopCommand
   | HarvestCommand
   | TrainCommand
-  | BuildStructureCommand;
+  | BuildStructureCommand
+  | SetRallyCommand
+  | CancelTrainCommand;
 
 export interface ScheduledCommand {
   execTick: number;

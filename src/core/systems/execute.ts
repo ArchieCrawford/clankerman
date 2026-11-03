@@ -8,8 +8,7 @@ import { unstick } from "./movement.js";
 import { CommandKind } from "../commands.js";
 import { GameState, Unit, UnitBehavior, getNode, getUnit } from "../state.js";
 import { unitType } from "../../data/units.js";
-import { isWalkableCell } from "../map.js";
-import { fxFloor } from "../../math/fixed.js";
+import { PlacementReject, queryPlacement } from "../placement.js";
 
 export function executeCommands(state: GameState): void {
   // Scan before allocating: this runs every tick and pending is usually empty
@@ -113,19 +112,9 @@ export function executeCommands(state: GameState): void {
         if (!w || !unitType(w.typeId).isWorker) break;
         const bt = unitType(cmd.unitTypeId);
         if (!bt.isBuilding || bt.faction !== unitType(w.typeId).faction) break;
+        // Same oracle the client ghost uses: terrain, buildings, units, cost.
+        if (queryPlacement(state, sc.playerId, cmd.unitTypeId, cmd.x, cmd.y) !== PlacementReject.Ok) break;
         const p = state.players[sc.playerId]!;
-        if (p.scrap < bt.costScrap || p.aether < bt.costAether) break;
-        // Footprint must be fully walkable (no units-on-site check yet — LOG entry pending).
-        const r = fxFloor(bt.radius) + 1;
-        const cx = fxFloor(cmd.x);
-        const cy = fxFloor(cmd.y);
-        let clear = true;
-        for (let dy = -r; dy < r && clear; dy++) {
-          for (let dx = -r; dx < r && clear; dx++) {
-            if (!isWalkableCell(state.map, cx + dx, cy + dy)) clear = false;
-          }
-        }
-        if (!clear) break;
         p.scrap -= bt.costScrap;
         p.aether -= bt.costAether;
         spawnUnit(state, sc.playerId, cmd.unitTypeId, cmd.x, cmd.y, true);
@@ -137,6 +126,36 @@ export function executeCommands(state: GameState): void {
             unstick(state, bystander);
           }
         }
+        break;
+      }
+      case CommandKind.SetRally: {
+        const b = getUnit(state, cmd.buildingId);
+        if (!b || b.hp <= 0 || b.playerId !== sc.playerId) break;
+        const bt = unitType(b.typeId);
+        if (!bt.isBuilding || bt.trains.length === 0) break;
+        b.rallyX = cmd.x;
+        b.rallyY = cmd.y;
+        break;
+      }
+      case CommandKind.CancelTrain: {
+        const b = getUnit(state, cmd.buildingId);
+        if (!b || b.hp <= 0 || b.playerId !== sc.playerId) break;
+        if (!unitType(b.typeId).isBuilding) break;
+        const idx = cmd.queueIndex;
+        if (idx < 0 || idx >= b.trainQueue.length) break;
+        const removed = b.trainQueue[idx]!;
+        const ut = unitType(removed);
+        b.trainQueue.splice(idx, 1);
+        // The head item is the one trainProgress measures. Cancelling it
+        // starts the new head from zero; cancelling the tail leaves progress.
+        if (idx === 0) b.trainProgress = 0;
+        if (b.trainQueue.length === 0 && b.behavior === UnitBehavior.Training) {
+          b.behavior = UnitBehavior.Idle;
+        }
+        const p = state.players[sc.playerId]!;
+        p.scrap += ut.costScrap;
+        p.aether += ut.costAether;
+        if (ut.powerCost > 0) p.powerUsed -= ut.powerCost;
         break;
       }
     }

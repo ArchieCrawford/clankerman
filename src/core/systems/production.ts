@@ -53,7 +53,26 @@ export function runProduction(state: GameState): void {
       u.trainQueue.shift();
       u.trainProgress = 0;
       // Power was committed at enqueue (LOG [007]) — don't charge again.
-      spawnUnit(state, u.playerId, head, cellCenterX(state.map, cell), cellCenterY(state.map, cell), false, true);
+      const spawned = spawnUnit(
+        state,
+        u.playerId,
+        head,
+        cellCenterX(state.map, cell),
+        cellCenterY(state.map, cell),
+        false,
+        true,
+      );
+      // Rally is a point order, issued earlier through SetRally (LOG [012]).
+      // Applying it here keeps the walk inside the sim, not the renderer.
+      if (u.rallyX >= 0 && u.rallyY >= 0 && !unitType(head).isBuilding) {
+        spawned.behavior = UnitBehavior.Moving;
+        spawned.goalX = u.rallyX;
+        spawned.goalY = u.rallyY;
+        spawned.path = null;
+        spawned.repathWait = 0;
+        spawned.targetId = -1;
+        spawned.harvestNodeId = -1;
+      }
     }
   }
 }

@@ -7,23 +7,174 @@
     <style>
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #0b0e12; }
       #hud {
-        position: fixed; top: 8px; left: 8px; z-index: 10;
-        font: 13px/1.5 ui-monospace, monospace; color: #cfd8e3;
-        background: rgba(10, 14, 20, 0.72); padding: 8px 12px; border-radius: 6px;
-        pointer-events: none; white-space: pre;
+        position: fixed; top: 8px; left: 10px; z-index: 10;
+        font: 12px/1.4 ui-monospace, monospace; color: #8b97a8;
+        pointer-events: none; white-space: nowrap;
       }
       #help {
-        position: fixed; bottom: 8px; left: 8px; z-index: 10;
-        font: 12px/1.5 ui-monospace, monospace; color: #7d8896;
-        background: rgba(10, 14, 20, 0.72); padding: 6px 10px; border-radius: 6px;
+        position: fixed; top: 28px; left: 10px; z-index: 10; width: 250px;
+        font: 12px/1.45 "Segoe UI", system-ui, sans-serif; color: #8b97a8;
         pointer-events: none;
       }
+      #topbar {
+        position: fixed; top: 28px; left: 50%; transform: translateX(-50%);
+        z-index: 12; display: flex; gap: 10px; pointer-events: none;
+      }
+      .res {
+        display: flex; align-items: center; gap: 10px;
+        min-width: 148px; padding: 8px 14px 8px 12px;
+        background: linear-gradient(180deg, rgba(22, 30, 42, 0.94), rgba(12, 16, 24, 0.94));
+        border: 1px solid #314156; border-radius: 10px;
+        color: #e7eef7; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .res .lbl {
+        display: block; font: 11px/1 "Segoe UI", system-ui, sans-serif;
+        letter-spacing: 0.08em; text-transform: uppercase; color: #8b97a8;
+      }
+      .res .val {
+        display: block; margin-top: 2px;
+        font: 700 22px/1.1 "Segoe UI", system-ui, sans-serif; font-variant-numeric: tabular-nums;
+      }
+      .res .pbar {
+        margin-top: 6px; height: 4px; width: 92px; background: #1c2633; border-radius: 99px; overflow: hidden;
+      }
+      #power-fill { height: 100%; width: 0; background: #ffd44d; }
+      .res.capped #power-fill { background: #ff5d6c; }
+      .res.capped .val { color: #ff8d98; }
+      .res.flash {
+        background: #4a1820; border-color: #ff5d6c; color: #ffd6da;
+      }
+      .gem {
+        width: 22px; height: 22px; display: inline-block; flex: none;
+      }
+      .gem.tiny { width: 10px; height: 10px; margin-right: 3px; vertical-align: -1px; }
+      .gem.scrap { background: #7fb2d9; clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%); }
+      .gem.aether { background: #62e8c8; border-radius: 50%; box-shadow: 0 0 8px rgba(98, 232, 200, 0.65); }
+      .gem.power { background: #ffd44d; clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
+      #alert {
+        position: fixed; top: 108px; left: 50%; transform: translateX(-50%);
+        z-index: 20; pointer-events: none; opacity: 0;
+        font: 700 16px/1 "Segoe UI", system-ui, sans-serif; color: #ffe4e6;
+        background: rgba(90, 16, 24, 0.94); border: 1px solid #ff5d6c;
+        padding: 10px 16px; border-radius: 8px;
+        transition: opacity 0.12s linear;
+      }
+      #alert.show { opacity: 1; visibility: visible; }
+      #alert:not(.show) { visibility: hidden; }
+      #alert.info {
+        color: #e7eef7; background: rgba(16, 24, 36, 0.94); border-color: #6f8298;
+      }
+      #command-card {
+        position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+        z-index: 12; display: flex; gap: 14px; align-items: stretch;
+        width: min(880px, calc(100vw - 24px));
+        padding: 12px;
+        background: linear-gradient(180deg, rgba(18, 26, 36, 0.96), rgba(8, 12, 18, 0.96));
+        border: 1px solid #3a4c63; border-radius: 12px;
+        box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+        color: #e7eef7; pointer-events: auto; user-select: none;
+        font: 13px/1.3 "Segoe UI", system-ui, sans-serif;
+      }
+      #command-card[hidden] { display: none; }
+      .card-id { display: flex; gap: 10px; width: 230px; flex: none; }
+      #card-swatch {
+        width: 54px; height: 54px; flex: none; border-radius: 6px;
+        border: 2px solid #d7b56d; box-shadow: inset 0 0 0 3px rgba(0, 0, 0, 0.35);
+      }
+      #card-swatch.round { border-radius: 50%; }
+      .card-copy { min-width: 0; }
+      #card-name { font: 700 16px/1.2 "Segoe UI", system-ui, sans-serif; }
+      #card-sub { margin-top: 4px; color: #93a0b3; font-size: 12px; }
+      .hp {
+        margin-top: 8px; height: 6px; background: #2a161c; border-radius: 99px; overflow: hidden;
+      }
+      #card-hp { height: 100%; width: 0; background: #53d769; }
+      #card-actions {
+        display: grid; grid-template-columns: repeat(4, minmax(68px, 1fr));
+        gap: 6px; align-content: start; flex: 1;
+      }
+      button.cmd {
+        position: relative; display: flex; flex-direction: column; align-items: flex-start;
+        gap: 2px; min-height: 74px; padding: 16px 8px 6px;
+        background: #1a2431; color: #e7eef7; border: 1px solid #31445c;
+        border-radius: 8px; cursor: pointer; text-align: left;
+      }
+      button.cmd:hover { background: #243246; border-color: #d7b56d; }
+      button.cmd kbd {
+        position: absolute; top: 4px; left: 6px;
+        font: 700 11px/1 ui-monospace, monospace; color: #ffd44d;
+      }
+      button.cmd .nm { font-weight: 650; font-size: 12px; }
+      button.cmd .cost { color: #b7c3d4; font-size: 11px; display: flex; align-items: center; }
+      button.cmd .cost.give { color: #9dffb0; }
+      button.cmd.broke { color: #ffb4bc; border-color: #6a3038; }
+      button.cmd.broke .cost { color: #ff8d98; }
+      button.cmd.armed { border-color: #3dff8a; box-shadow: inset 0 0 0 1px #3dff8a; }
+      #card-side { width: 220px; flex: none; display: flex; flex-direction: column; gap: 6px; }
+      #card-status { min-height: 16px; color: #c5d0de; font-size: 12px; }
+      #card-status.ok { color: #8dffb4; }
+      #card-status.bad { color: #ff8d98; font-weight: 700; }
+      #card-status.label { color: #8b97a8; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
+      .qempty { color: #6d7b8d; font-size: 12px; padding-top: 4px; }
+      .qrow {
+        display: grid; grid-template-columns: 1fr auto; gap: 4px 8px; align-items: center;
+        margin-bottom: 6px;
+      }
+      .qtop { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; grid-column: 1 / 2; }
+      .qtrack { height: 5px; background: #1c2633; border-radius: 99px; overflow: hidden; grid-column: 1 / 2; }
+      .qfill { height: 100%; background: #d7b56d; }
+      .qrow button {
+        grid-column: 2 / 3; grid-row: 1 / span 2;
+        background: #2a1a1e; color: #ffb4bc; border: 1px solid #6a3038;
+        border-radius: 6px; padding: 4px 8px; cursor: pointer; font: inherit;
+      }
+      .qrow button:hover { background: #4a1820; }
       canvas { display: block; }
     </style>
   </head>
   <body>
     <div id="hud">loading…</div>
-    <div id="help">left-drag: select · right-click: move / attack / harvest · A+click: attack-move · WASD/edges: pan · wheel: zoom</div>
+    <div id="help">drag select · right-click orders and rally · card hotkeys train and build · Ctrl+1–9 groups · WASD, arrows, or edges pan · wheel zoom · Esc cancels</div>
+    <div id="topbar" data-testid="topbar">
+      <div class="res" id="res-scrap" data-testid="res-scrap">
+        <span class="gem scrap"></span>
+        <div>
+          <span class="lbl">Scrap</span>
+          <span class="val" id="val-scrap">0</span>
+        </div>
+      </div>
+      <div class="res" id="res-aether" data-testid="res-aether">
+        <span class="gem aether"></span>
+        <div>
+          <span class="lbl">Aether</span>
+          <span class="val" id="val-aether">0</span>
+        </div>
+      </div>
+      <div class="res" id="res-power" data-testid="res-power">
+        <span class="gem power"></span>
+        <div>
+          <span class="lbl">Power</span>
+          <span class="val" id="val-power">0/0</span>
+          <div class="pbar"><div id="power-fill"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="alert" data-testid="alert"></div>
+    <div id="command-card" data-testid="command-card" hidden>
+      <div class="card-id">
+        <div id="card-swatch"></div>
+        <div class="card-copy">
+          <div id="card-name"></div>
+          <div id="card-sub"></div>
+          <div class="hp"><div id="card-hp"></div></div>
+        </div>
+      </div>
+      <div id="card-actions" data-testid="card-actions"></div>
+      <div id="card-side">
+        <div id="card-status" data-testid="card-status"></div>
+        <div id="card-queue" data-testid="card-queue"></div>
+      </div>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

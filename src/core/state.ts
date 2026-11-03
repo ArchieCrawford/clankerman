@@ -71,6 +71,12 @@ export interface Unit {
   trainProgress: number;
   /** Buildings: remaining construction ticks; 0 = operational. */
   constructTicks: number;
+  /**
+   * Rally point for production buildings, in world coords. Both -1 means
+   * "no rally". New trainees path here (LOG [012]).
+   */
+  rallyX: Fx;
+  rallyY: Fx;
 }
 
 export interface ResourceNode {
@@ -164,6 +170,15 @@ function hashCommand(cmd: Command): number {
       h = hashInt(h, cmd.x);
       h = hashInt(h, cmd.y);
       break;
+    case CommandKind.SetRally:
+      h = hashInt(h, cmd.buildingId);
+      h = hashInt(h, cmd.x);
+      h = hashInt(h, cmd.y);
+      break;
+    case CommandKind.CancelTrain:
+      h = hashInt(h, cmd.buildingId);
+      h = hashInt(h, cmd.queueIndex);
+      break;
   }
   return h;
 }
@@ -212,6 +227,8 @@ export function hashState(state: GameState): number {
     h = hashInt(h, u.path === null ? -1 : u.path.length);
     h = hashInt(h, u.trainQueue.length);
     for (const q of u.trainQueue) h = hashInt(h, q);
+    h = hashInt(h, u.rallyX);
+    h = hashInt(h, u.rallyY);
   }
   for (const n of state.nodes) {
     h = hashInt(h, n.id);

@@ -221,5 +221,47 @@ Renderer-side conversions live in web/coords.ts and are unit-tested, incl.
 Known gaps queued for next phase: production/building UI, fog of war,
 victory/defeat screen beyond the HUD tag, sound.
 
+## [012] 2026-11-03 CHANGE — Production macro: rally, cancel, placement query, command card
+
+The human can macro from the Pixi client. The renderer still only reads
+GameState and issues commands through `issueCommand`. New commands, both
+sanitized at the queue boundary and hashed:
+
+- `SetRally` stores a world point on a production building (`rallyX` /
+  `rallyY`; both `-1` means none). When `runProduction` spawns the trainee it
+  sets that unit to `Moving` toward the point. Buildings that train nothing
+  ignore the command.
+- `CancelTrain` removes one `trainQueue` index. Cancelling the head resets
+  `trainProgress`; cancelling the tail leaves it. Scrap, Aether, and the Power
+  committed at enqueue are refunded in full. Resources on a queue that dies
+  with its building stay sunk (LOG [007]) — cancel is the only refund.
+
+`queryPlacement` is a pure read. `BuildStructure` and the placement ghost both
+use it, so a green ghost is the same answer the sim will give on an unchanged
+map. Reject order is fixed: off-map or terrain, then a building's footprint,
+then a unit's cell, then Scrap/Aether. The rectangle is the one
+`blockFootprint` already paints. The previous command check was a wider box
+(`fxFloor(radius) + 1` around the anchor) and did not see units; that LOG [007]
+simplification is retired.
+
+The client (`web/hud.ts`, `web/card.ts`, `web/predict.ts`, `web/input.ts`)
+draws a top Scrap / Aether / Power readout and a bottom command card: trainable
+units with cost and a grid hotkey, a queue with progress and cancel, and a
+worker's structure list. Placement snaps the anchor to the cell under the
+cursor and tints the footprint green or red. Shift keeps placement armed;
+Esc or right-click leaves it. Right-click with a production building selected
+issues `SetRally`. Hotkeys are the card grid (Q W E R …). WASD pan yields
+while a card action owns that letter; the arrow keys always pan. Ctrl+1–9
+stores a control group and 1–9 recalls it — local selection, not a sim
+command. A denied train or placement flashes the matching resource and a
+toast ("Not enough Scrap", "Not enough Aether", "Not enough Power"). The
+client also reads the latency queue so a second Shift-placement does not paint
+green on a cell already paid for; execution still re-checks.
+
+Verified: 80 vitest tests, including `test/macro.test.ts`, the lockstep
+replay, and the float-ban lint. A headless Chromium pass trained from the
+card, cancelled a queue slot, set a rally, shift-placed two masts, rejected a
+footprint on the foundry, and flashed the Scrap readout at 0.
+
 ---
 <!-- Append new entries below. Never edit or delete existing entries. -->

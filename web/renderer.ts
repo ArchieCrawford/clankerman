@@ -9,6 +9,7 @@ import { Faction, UnitType, unitType } from "../src/data/units.js";
 import { ResourceKind } from "../src/core/state.js";
 import { CELL_PX, fxToPx, lerpFxToPx } from "./coords.js";
 import { SimDriver } from "./sim-driver.js";
+import { GhostView } from "./predict.js";
 
 const PLAYER_COLORS = [0x4da3ff, 0xff5d5d, 0xffd44d, 0x9dff70];
 const FACTION_BODY: Record<Faction, number> = {
@@ -34,6 +35,8 @@ export class Renderer {
   private readonly views = new Map<number, UnitView>();
   private readonly textures = new Map<string, Texture>();
   private readonly app: Application;
+  private readonly ghostGfx = new Graphics();
+  private readonly rallyGfx = new Graphics();
 
   constructor(app: Application, world: Container) {
     this.app = app;
@@ -41,6 +44,7 @@ export class Renderer {
     this.unitLayer = new Container();
     this.overlay = new Container();
     world.addChild(this.ground, this.unitLayer, this.overlay);
+    this.overlay.addChild(this.rallyGfx, this.ghostGfx);
   }
 
   /** Draw static terrain + resource nodes once (nodes redrawn on depletion). */
@@ -79,7 +83,7 @@ export class Renderer {
   }
 
   /** Per-frame: sync sprite pool with the unit list and interpolate positions. */
-  render(driver: SimDriver, selection: ReadonlySet<number>): void {
+  render(driver: SimDriver, selection: ReadonlySet<number>, ghost: GhostView | null): void {
     const state = driver.state;
     const alpha = driver.alpha;
     const seen = new Set<number>();
@@ -116,6 +120,52 @@ export class Renderer {
           this.views.delete(id);
         }
       }
+    }
+
+    this.drawGhost(ghost);
+    this.drawRallies(state, selection);
+  }
+
+  /** Cell-snapped footprint. Green is a legal placement; red is not. */
+  private drawGhost(ghost: GhostView | null): void {
+    const g = this.ghostGfx;
+    g.clear();
+    if (!ghost) return;
+    const color = ghost.valid ? 0x3dff8a : 0xff4455;
+    const x = ghost.minCx * CELL_PX;
+    const y = ghost.minCy * CELL_PX;
+    const w = (ghost.maxCx - ghost.minCx + 1) * CELL_PX;
+    const h = (ghost.maxCy - ghost.minCy + 1) * CELL_PX;
+    g.rect(x, y, w, h).fill({ color, alpha: 0.34 }).stroke({ width: 3, color, alpha: 0.95 });
+    const cols = ghost.maxCx - ghost.minCx + 1;
+    const rows = ghost.maxCy - ghost.minCy + 1;
+    if (cols * rows <= 64) {
+      for (let cx = ghost.minCx; cx <= ghost.maxCx; cx++) {
+        for (let cy = ghost.minCy; cy <= ghost.maxCy; cy++) {
+          g.rect(cx * CELL_PX + 4, cy * CELL_PX + 4, CELL_PX - 8, CELL_PX - 8).stroke({
+            width: 1,
+            color,
+            alpha: 0.55,
+          });
+        }
+      }
+    }
+  }
+
+  /** Rally flag for each selected production building that has one. */
+  private drawRallies(state: GameState, selection: ReadonlySet<number>): void {
+    const g = this.rallyGfx;
+    g.clear();
+    for (const u of state.units) {
+      if (!selection.has(u.id) || u.rallyX < 0 || u.rallyY < 0) continue;
+      const t = unitType(u.typeId);
+      if (!t.isBuilding || t.trains.length === 0) continue;
+      const x0 = fxToPx(u.x);
+      const y0 = fxToPx(u.y);
+      const x1 = fxToPx(u.rallyX);
+      const y1 = fxToPx(u.rallyY);
+      g.moveTo(x0, y0).lineTo(x1, y1).stroke({ width: 2, color: 0xffd44d, alpha: 0.9 });
+      g.regularPoly(x1, y1, 9, 4).fill(0xffd44d).stroke({ width: 2, color: 0x3a2a08 });
     }
   }
 
