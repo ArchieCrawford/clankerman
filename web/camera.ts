@@ -13,6 +13,8 @@ const ZOOM_MAX = 3;
 export class Camera {
   readonly world: Container;
   zoom = 1;
+  /** Command-card hotkeys that must not also pan. Filled by the input layer. */
+  readonly panSuppressed = new Set<string>();
   private readonly keys = new Set<string>();
   private mouseX = -1;
   private mouseY = -1;
@@ -29,7 +31,9 @@ export class Camera {
     this.worldH = worldHpx;
 
     window.addEventListener("keydown", (e) => {
-      this.keys.add(e.key.toLowerCase());
+      const k = e.key.toLowerCase();
+      this.keys.add(k);
+      if (k.startsWith("arrow")) e.preventDefault();
     });
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.key.toLowerCase());
@@ -74,10 +78,14 @@ export class Camera {
     const d = (PAN_SPEED_PX * dtMs) / 1000;
     let dx = 0;
     let dy = 0;
-    if (this.keys.has("w")) dy += d;
-    if (this.keys.has("s")) dy -= d;
-    if (this.keys.has("a")) dx += d;
-    if (this.keys.has("d")) dx -= d;
+    if (this.keys.has("w") && !this.panSuppressed.has("w")) dy += d;
+    if (this.keys.has("s") && !this.panSuppressed.has("s")) dy -= d;
+    if (this.keys.has("a") && !this.panSuppressed.has("a")) dx += d;
+    if (this.keys.has("d") && !this.panSuppressed.has("d")) dx -= d;
+    if (this.keys.has("arrowup")) dy += d;
+    if (this.keys.has("arrowdown")) dy -= d;
+    if (this.keys.has("arrowleft")) dx += d;
+    if (this.keys.has("arrowright")) dx -= d;
     if (this.mouseX >= 0) {
       if (this.mouseX < EDGE_MARGIN) dx += d;
       if (this.mouseX > this.viewW - EDGE_MARGIN) dx -= d;

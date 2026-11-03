@@ -14,6 +14,7 @@ import { SimDriver } from "./sim-driver.js";
 import { Camera } from "./camera.js";
 import { Renderer } from "./renderer.js";
 import { InputController } from "./input.js";
+import { Hud } from "./hud.js";
 import { ScriptedAI } from "./ai.js";
 
 const HUMAN = 0;
@@ -52,6 +53,7 @@ async function boot(): Promise<void> {
   window.addEventListener("resize", () => camera.resize(app.screen.width, app.screen.height));
 
   const input = new InputController(state, HUMAN, world, renderer.overlay, app.canvas);
+  const panel = new Hud(input);
   const ai = new ScriptedAI(1);
 
   const hud = document.getElementById("hud")!;
@@ -64,23 +66,21 @@ async function boot(): Promise<void> {
       driver.update(ticker.deltaMS);
     }
     // 2. Camera + input housekeeping (render-side only).
-    camera.update(ticker.deltaMS);
     input.prune();
+    input.syncPan(camera);
+    camera.update(ticker.deltaMS);
     // 3. Draw. Terrain re-bakes only when buildings changed the walkable grid.
     const structures = state.units.reduce((n, u) => n + (unitType(u.typeId).isBuilding ? 1 : 0), 0);
     if (structures !== lastStructureCount) {
       lastStructureCount = structures;
       renderer.drawGround(state);
     }
-    renderer.render(driver, input.selection);
+    renderer.render(driver, input.selection, input.ghost);
+    panel.update(state);
 
     const p = state.players[HUMAN]!;
-    const army = state.units.filter(
-      (u) => u.playerId === HUMAN && !unitType(u.typeId).isWorker && !unitType(u.typeId).isBuilding,
-    ).length;
     hud.textContent =
-      `${FACTION_NAMES[p.faction as Faction]}  tick ${state.tick}  seed ${seed}\n` +
-      `scrap ${p.scrap}  aether ${p.aether}  power ${p.powerUsed}/${p.powerCap}  army ${army}  sel ${input.selection.size}\n` +
+      `${FACTION_NAMES[p.faction as Faction]}  tick ${state.tick}  seed ${seed}  ` +
       `hash ${(hashState(state) >>> 0).toString(16).padStart(8, "0")}` +
       (isGameOver(state) ? (p.defeated ? "  — DEFEAT" : "  — VICTORY") : "");
   });

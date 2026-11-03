@@ -8,6 +8,8 @@ export * from "./core/state.js";
 export * from "./core/commands.js";
 export * from "./core/api.js";
 export * from "./core/sim.js";
+export { footprintOf, footprintsOverlap, queryPlacement, PlacementReject } from "./core/placement.js";
+export type { Footprint } from "./core/placement.js";
 export { isGameOver } from "./core/systems/deaths.js";
 export * from "./data/units.js";
 export * from "./scenario.js";
